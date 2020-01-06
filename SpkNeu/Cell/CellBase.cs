@@ -19,6 +19,11 @@ namespace SpkNeu.Cell
         public double LocalSignal { get { return localSignal; } }
         public double Signal { get; private set; }
 
+        private Queue<bool> LongSignalDeviation { get; set; } = new Queue<bool>();
+        public double LongTermIgnitionRatio { get; private set; } = 0;
+        public double MiddleTermIgnitionRatio { get; private set; } = 0;
+        public double ShortTermIgnitionRatio { get; private set; } = 0;
+
         public bool IsIgnition { get; private set; } = false;
 
         protected List<CellBase> Glial { get; set; } = new List<CellBase>();
@@ -66,7 +71,35 @@ namespace SpkNeu.Cell
         public bool Update()
         {
             Signal = Math.Max(0, localSignal);
-            //Signal = localSignal;
+
+            //LongSignalDeviation.Enqueue(IsIgnition);
+            //if (LongSignalDeviation.Count > 500)
+            //{
+            //    LongSignalDeviation.Dequeue();
+            //}
+            //double lcnt = 0;
+            //double mcnt = 0;
+            //double scnt = 0;
+            //var items = LongSignalDeviation.ToArray();
+            //for (int i = 0; i < items.Length; i++)
+            //{
+            //    if (items[i])
+            //    {
+            //        lcnt++;
+            //        if (i - (500 - 100) >= 0)
+            //        {
+            //            mcnt++;
+            //        }
+            //        if (i - (500 - 25) >= 0)
+            //        {
+            //            scnt++;
+            //        }
+            //    }
+            //}
+            //LongTermIgnitionRatio = lcnt / LongSignalDeviation.Count;
+            //MiddleTermIgnitionRatio = mcnt / 100;
+            //ShortTermIgnitionRatio = scnt / 25;
+
             if (AxsonCount == 0)
             {
                 return false;

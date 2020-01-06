@@ -116,14 +116,14 @@ namespace Viewer.Forms
                 double zodr = 1 - (item.Location.Z - near) / (far - near);
                 byte b = (byte)(byte.MaxValue * zodr * (Math.Max(Math.Min(1, (item.LocalSignal)), 0)));
                 Color c = Color.FromArgb(0, b, b);
-                int es = (int)(10 * zodr);
+                int es = (int)(20 * zodr);
                 g.FillEllipse(new SolidBrush(c), new RectangleF(new PointF(x - es / 2, y - es / 2), new SizeF(es, es)));
                 Pen p = new Pen(Color.FromArgb(100, Color.Gray), 1);
                 if (item.IsIgnition)
                 {
-                    p = new Pen(Color.FromArgb((byte)(byte.MaxValue * zodr), Color.Red), 2);
+                    p = new Pen(Color.FromArgb((byte)(byte.MaxValue * zodr), Color.Red), 1.5f);
                 }
-                g.DrawEllipse(p, new RectangleF(new PointF(x - es / 2, y - es / 2), new SizeF(es, es)));
+                g.DrawEllipse(p, new RectangleF(new PointF(x - es / 2 + 0.5f, y - es / 2 + 0.5f), new SizeF(es - 1, es - 1)));
             }
 
             return bitmap;

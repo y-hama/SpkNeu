@@ -81,18 +81,8 @@ namespace SpkNeu
                 {
                     Neurons[i].Ignition();
                 }
-                List<int> rem = new List<int>();
                 for (int i = 0; i < Neurons.Count; i++)
-                {
-                    if (!Neurons[i].Update())
-                    {
-                        rem.Add(i);
-                    }
-                }
-                var tmp = new List<Cell.CellBase>(Neurons);
-                for (int i = 0; i < rem.Count; i++)
-                {
-                    Neurons.Remove(tmp[rem[i]]);
+                { Neurons[i].Update();
                 }
 
                 if (IgnitionHandler != null)
