@@ -41,13 +41,15 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Cell\CellBase.cs" />
+    <Compile Include="Cell\CellCore.cs" />
     <Compile Include="Cell\CellInfomation.cs" />
+    <Compile Include="Cell\Receptor.cs" />
     <Compile Include="Cell\SpikeNeuron.cs" />
-    <Compile Include="Cell\VirtualNeuron.cs" />
     <Compile Include="Core.cs" />
     <Compile Include="Field.cs" />
     <Compile Include="Location.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="SensoryField.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 

@@ -14,7 +14,7 @@ namespace SpkNeu
 
         public new string ToString()
         {
-            return string.Format("X:{0}, Y:{1}, Z:{2}", X, Y, Z);
+            return string.Format("X:{0}, Y:{1}, Z:{2}, D:{3}", X, Y, Z, DistanceTo(new SpkNeu.Location()));
         }
 
         public void Copy(Location location)
@@ -24,17 +24,21 @@ namespace SpkNeu
             Z = location.Z;
         }
 
-        public Location(Random random = null)
+        public Location(double x, double y, double z)
+        {
+            X = x; Y = y; Z = z;
+        }
+        public Location(Random random = null, double area = 1)
         {
             if (random != null)
             {
                 bool check = false;
                 while (!check)
                 {
-                    X = random.NextDouble() * 2 - 1;
-                    Y = random.NextDouble() * 2 - 1;
-                    Z = random.NextDouble() * 2 - 1;
-                    if (DistanceTo(new Location()) < 1)
+                    X = area * (random.NextDouble() * 2 - 1);
+                    Y = area * (random.NextDouble() * 2 - 1);
+                    Z = area * (random.NextDouble() * 2 - 1);
+                    if (DistanceTo(new Location()) < area)
                     {
                         check = true;
                     }
@@ -42,12 +46,20 @@ namespace SpkNeu
             }
         }
 
-        public double DistanceTo(Location loc)
+        public double DistanceTo(Location loc, double? border = null)
         {
             double dx = X - loc.X;
             double dy = Y - loc.Y;
             double dz = Z - loc.Z;
-            return Math.Sqrt(dx * dx + dy * dy + dz * dz);
+            double dist = Math.Sqrt(dx * dx + dy * dy + dz * dz);
+            if (border != null)
+            {
+                while (dist > border)
+                {
+                    dist -= border.Value;
+                }
+            }
+            return dist;
         }
 
         public double Norm
@@ -67,14 +79,22 @@ namespace SpkNeu
             }
         }
 
+        public static List<Location> GetAxis(Location offset, double size)
+        {
+            Location eo = new Location(0, 0, 0);
+            Location ex = new Location(1, 0, 0);
+            Location ey = new Location(0, 1, 0);
+            Location ez = new Location(0, 0, 1);
+            eo = size * GetConvertedLocation(eo) + offset;
+            ex = size * GetConvertedLocation(ex) + offset;
+            ey = size * GetConvertedLocation(ey) + offset;
+            ez = size * GetConvertedLocation(ez) + offset;
+            return new List<Location>(new Location[] { eo, ex, ey, ez });
+        }
+
         private static Location Cross(Location l1, Location l2)
         {
-            return new Location()
-            {
-                X = l1.Y * l2.Z - l1.Z * l2.Y,
-                Y = l1.Z * l2.X - l1.X * l2.Z,
-                Z = l1.X * l2.Y - l1.Y * l2.X,
-            };
+            return new Location(l1.Y * l2.Z - l1.Z * l2.Y, l1.Z * l2.X - l1.X * l2.Z, l1.X * l2.Y - l1.Y * l2.X);
         }
 
         private static double Dot(Location l1, Location l2)
@@ -121,22 +141,20 @@ namespace SpkNeu
                     res[i] += WorldMatrix[i, j] * vec[j];
                 }
             }
-            return new Location()
-            {
-                X = res[0],
-                Y = res[1],
-                Z = res[2],
-            };
+            return new Location(res[0], res[1], res[2]);
         }
 
+        public static Location operator +(Location l1, Location l2)
+        {
+            return new Location(l1.X + l2.X, l1.Y + l2.Y, l1.Z + l2.Z);
+        }
         public static Location operator -(Location l1, Location l2)
         {
-            return new Location()
-            {
-                X = l1.X - l2.X,
-                Y = l1.Y - l2.Y,
-                Z = l1.Z - l2.Z,
-            };
+            return new Location(l1.X - l2.X, l1.Y - l2.Y, l1.Z - l2.Z);
+        }
+        public static Location operator *(double scale, Location l2)
+        {
+            return new Location(scale * l2.X, scale * l2.Y, scale * l2.Z);
         }
     }
 }

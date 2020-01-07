@@ -9,38 +9,82 @@ namespace SpkNeu.Cell
     public class SpikeNeuron : CellBase
     {
         private int IDStub { get { return ID; } }
-        private enum State
+
+        private bool Initialized { get; set; } = false;
+        #region PersonalProperty
+        private const double StableDecayDefault = 0.5;
+        private const double IgnitionInflationDefault = 1.1;
+        private const double OverShootDecayStepDefault = 0.11;
+        private const double OverShootDecayDefault = 0.8;
+        private const double OverShootLimitDefault = 0.15;
+        private const double CoolingDecayDefault = 0.9;
+        private const double FluctuationDefault = 0;
+        private const double AcceptanceDefault = 0.25;
+        private double StableDecay { get; set; } = StableDecayDefault;
+        private double IgnitionInflation { get; set; } = IgnitionInflationDefault;
+        private double OverShootDecayStep { get; set; } = OverShootDecayStepDefault;
+        private double OverShootDecay { get; set; } = OverShootDecayDefault;
+        private double OverShootLimit { get; set; } = OverShootLimitDefault;
+        private double CoolingDecay { get; set; } = CoolingDecayDefault;
+        private double Fluctuation { get; set; } = FluctuationDefault;
+        private double Acceptance { get; set; } = AcceptanceDefault;
+        #endregion
+
+        private List<double> prevAxonSignal { get; set; } = null;
+
+        public override void Connection(double defaultvalue = 0)
         {
-            Stable,
-            Ignition,
-            OverShoot,
-            Cooling,
-        }
-        private State state { get; set; } = State.Stable;
+            if (!Initialized)
+            {
+                double fq = 0.005;
+                StableDecay = Math.Max(0, StableDecayDefault + (random.NextDouble() * 2 - 1) * fq);
+                IgnitionInflation = Math.Max(0, IgnitionInflationDefault + (random.NextDouble() * 2 - 1) * fq);
+                OverShootDecayStep = Math.Max(0, OverShootDecayStepDefault + (random.NextDouble() * 2 - 1) * fq);
+                OverShootDecay = Math.Max(0, OverShootDecayDefault + (random.NextDouble() * 2 - 1) * fq);
+                OverShootLimit = Math.Max(0, OverShootLimitDefault + (random.NextDouble() * 2 - 1) * fq);
+                CoolingDecay = Math.Max(0, CoolingDecayDefault + (random.NextDouble() * 2 - 1) * fq);
+                Fluctuation = Math.Max(0, FluctuationDefault + (random.NextDouble() * 2 - 1) * fq);
+                Acceptance = Math.Max(0, AcceptanceDefault + (random.NextDouble() * 2 - 1) * fq);
 
-        private double OverShootLimit { get; set; }
-
-        private List<double> prevAxonSignal { get; set; } = new List<double>();
-
-        public override void Connection()
-        {
-            OverShootLimit = random.NextDouble() * 0.2 + 0.05;
-            prevAxonSignal = new List<double>(new double[AxsonCount]);
+                state = State.Cooling;
+                localSignal = -OverShootLimit;
+                Initialized = true;
+            }
+            if (prevAxonSignal == null)
+            {
+                prevAxonSignal = new List<double>(new double[AxsonCount]);
+            }
+            else
+            {
+                prevAxonSignal.Add(defaultvalue);
+            }
         }
 
         protected override void Disconnection(int index)
         {
+            prevAxonSignal.Remove(prevAxonSignal[index]);
         }
 
-        protected override double calculateUpdateQuantity(List<double> signals)
+        protected override double calculateUpdateQuantity(List<double> signals, List<bool> isreceotor)
         {
             double res = 0;
+            int reccount = isreceotor.Count(x => x);
             for (int i = 0; i < signals.Count; i++)
             {
-                res += prevAxonSignal[i] - signals[i];
-                prevAxonSignal[i] = signals[i];
+                if (isreceotor[i])
+                {
+                    res +=  signals[i];
+                }
+                else
+                {
+                    res += prevAxonSignal[i] - signals[i];
+                    prevAxonSignal[i] = signals[i];
+                }
             }
-
+            if (signals.Count > 0)
+            {
+                res /= Math.Max(1, reccount);
+            }
             return Math.Max(0, res);
         }
 
@@ -51,17 +95,20 @@ namespace SpkNeu.Cell
             {
                 case State.Stable:
                     {
-                        double rho = 0.55;
-                        ret = (rho * localSignal + (1 - rho) * updateQuantity) + (random.NextDouble() * 2 - 1) / 100;
+                        ret = Math.Max(0, (localSignal + updateQuantity + (random.NextDouble()) * Fluctuation) * StableDecay);
                         if (ret > 1)
                         {
                             state = State.Ignition;
+                        }
+                        else
+                        {
+                            JoinUpdate();
                         }
                     }
                     break;
                 case State.Ignition:
                     {
-                        ret = (localSignal) * 1.25;
+                        ret = (localSignal) * IgnitionInflation;
                         if (ret > 2)
                         {
                             state = State.OverShoot;
@@ -70,7 +117,7 @@ namespace SpkNeu.Cell
                     break;
                 case State.OverShoot:
                     {
-                        ret = (localSignal - 0.1) * 0.75;
+                        ret = (localSignal - OverShootDecayStep) * OverShootDecay;
                         if (ret < -OverShootLimit)
                         {
                             state = State.Cooling;
@@ -79,9 +126,10 @@ namespace SpkNeu.Cell
                     break;
                 case State.Cooling:
                     {
-                        ret = 1E-3 + (localSignal) * 0.95;
+                        ret = 1E-3 + (localSignal) * CoolingDecay;
                         if (ret > 0)
                         {
+                            ret = 0;
                             state = State.Stable;
                         }
                     }
@@ -90,6 +138,61 @@ namespace SpkNeu.Cell
                     break;
             }
             return ret;
+        }
+
+        private void JoinUpdate()
+        {
+            List<CellCore> rem = new List<CellCore>();
+            foreach (var item in Axson)
+            {
+                if (item is CellBase)
+                {
+                    if (item.LongTermIgnitionRatio <= this.MiddleTermIgnitionRatio)
+                    {
+                        rem.Add(item);
+                    }
+                }
+                else if (item is Receptor)
+                {
+                    Receptor receptor = item as Receptor;
+                    if ((receptor.SignalUpdateAmount > 0) && (receptor.SignalUpdateAmount - this.ShortTermIgnitionRatio) < 1E-3)
+                    {
+                        rem.Add(item);
+                    }
+                }
+            }
+            foreach (var item in rem)
+            {
+                double probabirity = 1E-6;
+                Remove(item, probabirity);
+            }
+
+            var target = Glial.FindAll(x => !Axson.Contains(x));
+            foreach (var item in target)
+            {
+                double probabirity = 1;
+                if (item is CellBase)
+                {
+                    if (item.LongTermIgnitionRatio > this.LongTermIgnitionRatio)
+                    {
+                        probabirity = 1E-2;
+                        if (this.ShortTermIgnitionRatio > item.ShortTermIgnitionRatio)
+                        {
+                            probabirity = 1E-2;
+                        }
+                        Add(item, probabirity);
+                    }
+                }
+                else if (item is Receptor)
+                {
+                    Receptor receptor = item as Receptor;
+                    if ((receptor.SignalUpdateAmount) > Acceptance)
+                    {
+                        probabirity = 1E-2;
+                        Add(item, probabirity);
+                    }
+                }
+            }
         }
     }
 }

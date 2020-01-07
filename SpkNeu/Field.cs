@@ -18,17 +18,22 @@ namespace SpkNeu
             remove { IgnitionHandler -= value; }
         }
 
-        private double AxsonLength { get; set; } = 0.2;
+        private double FieldSize { get; set; } = 0.75;
+        private double AxsonLength { get; set; } = 0.15;
 
         public List<Cell.CellBase> Neurons { get; set; } = new List<Cell.CellBase>();
+        private List<int> SortID_Nearest_to_Center { get; set; } = new List<int>();
+        private int ConnectedID { get; set; } = 0;
 
-        public Field(Cell.CellBase typebase, int count, int timing = 5)
+        public Field(Cell.CellBase typebase, int count)
         {
             Type type = typebase.GetType();
 
             for (int i = 0; i < count; i++)
             {
-                Neurons.Add((Cell.CellBase)Activator.CreateInstance(type));
+                var cell = (Cell.CellBase)Activator.CreateInstance(type);
+                cell.SetLocation(FieldSize);
+                Neurons.Add(cell);
             }
             for (int i = 0; i < count; i++)
             {
@@ -44,24 +49,19 @@ namespace SpkNeu
                     }
                 }
             }
-            //List<int> rem = new List<int>();
-            //for (int i = 0; i < count; i++)
-            //{
-            //    if (Neurons[i].AxsonCount == 0)
-            //    {
-            //        rem.Add(i);
-            //    }
-            //}
-            //var tmp = new List<Cell.CellBase>(Neurons);
-            //for (int i = 0; i < rem.Count; i++)
-            //{
-            //    Neurons.Remove(tmp[rem[i]]);
-            //}
-            foreach (var item in Neurons)
+            var tmp = new Cell.CellBase[Neurons.Count];
+            Neurons.CopyTo(tmp);
+            var ntmp = new List<Cell.CellBase>(tmp);
+            ntmp.Sort();
+            //ntmp.Reverse();
+            for (int i = 0; i < ntmp.Count; i++)
             {
-                item.Connection();
+                SortID_Nearest_to_Center.Add(ntmp[i].ID);
             }
+        }
 
+        public void Start(int timing = 5)
+        {
             new System.Threading.Thread(new System.Threading.ParameterizedThreadStart(transmission)).Start(timing);
         }
 
@@ -82,7 +82,8 @@ namespace SpkNeu
                     Neurons[i].Ignition();
                 }
                 for (int i = 0; i < Neurons.Count; i++)
-                { Neurons[i].Update();
+                {
+                    Neurons[i].Update();
                 }
 
                 if (IgnitionHandler != null)
@@ -93,6 +94,16 @@ namespace SpkNeu
                 double sleep = timing - (DateTime.Now - start).TotalMilliseconds;
                 System.Threading.Thread.Sleep((int)Math.Max(0, sleep));
             }
+        }
+
+        public void SetReceotor(SensoryField receptor)
+        {
+            for (int i = 0; i < receptor.Neurons.Count; i++)
+            {
+                var cell = Neurons.Find(x => x.ID == SortID_Nearest_to_Center[i + ConnectedID]);
+                cell.Add(receptor.Neurons[i], 1);
+            }
+            ConnectedID += receptor.Neurons.Count;
         }
     }
 }

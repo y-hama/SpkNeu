@@ -29,13 +29,20 @@ namespace SpkNeu
         }
 
         private static Field field;
+        private static SensoryField receptor;
         public static void FieldTest(Cell.CellBase typebase, int count, int timing, Field.IgnitionEventHandler handler = null)
         {
-            field = new SpkNeu.Field(typebase, count, timing);
+            field = new SpkNeu.Field(typebase, count);
             if (handler != null)
             {
                 field.Ignition += handler;
             }
+            receptor = new SpkNeu.SensoryField(10);
+
+            field.SetReceotor(receptor);
+
+            receptor.Start(timing);
+            field.Start(timing);
         }
         public static Cell.CellBase HeadCell { get { return field.Neurons[0]; } }
     }
