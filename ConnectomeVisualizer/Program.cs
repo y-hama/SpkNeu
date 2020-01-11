@@ -14,6 +14,8 @@ namespace ConnectomeVisualizer
         [STAThread]
         static void Main()
         {
+            Connectome.Core.Initialize();
+
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
             Application.Run(new Form1());

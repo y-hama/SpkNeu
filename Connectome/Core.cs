@@ -6,14 +6,11 @@ using System.Threading.Tasks;
 
 namespace Connectome
 {
-    public static class Imaging
+    public class Core
     {
-
-        public static System.Drawing.Bitmap
-            AxisConversion()
+        public static void Initialize()
         {
-
-            return null;
+            Components.State.Initialize(true);
         }
     }
 }
