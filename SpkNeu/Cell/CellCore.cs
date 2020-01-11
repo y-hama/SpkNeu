@@ -12,6 +12,10 @@ namespace SpkNeu.Cell
         public int ID { get; protected set; }
 
         protected static Random random { get; set; } = new Random();
+        protected static bool Probabirity(double expect)
+        {
+            return random.NextDouble() < expect;
+        }
 
         public Location Location { get; set; }
 
@@ -43,19 +47,21 @@ namespace SpkNeu.Cell
                 if (items[i])
                 {
                     lcnt++;
-                    if (i - (TermQueueCount * 3 / 4) >= 0)
+                    if (i - (TermQueueCount * 4 / 5) >= 0)
                     {
                         mcnt++;
                     }
-                    if (i - (TermQueueCount * 9 / 10) >= 0)
+                    if (i - (TermQueueCount * 24 / 25) >= 0)
                     {
                         scnt++;
                     }
                 }
             }
             LongTermIgnitionRatio = lcnt / LongSignalDeviation.Count;
-            MiddleTermIgnitionRatio = mcnt / (TermQueueCount / 4);
-            ShortTermIgnitionRatio = scnt / (TermQueueCount / 10);
+            MiddleTermIgnitionRatio = mcnt / (TermQueueCount / 5);
+            ShortTermIgnitionRatio = scnt / (TermQueueCount / 25);
+            if (scnt > 0)
+            { scnt++; }
         }
 
         protected void ReceptorTermIgnitionRatio(double signal, double update)

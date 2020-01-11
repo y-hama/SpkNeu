@@ -14,6 +14,7 @@ namespace SpkNeu.Cell
         public double LocalSignal { get; private set; }
 
         public int AxsonCount { get; private set; }
+        public int GlialCount { get; private set; }
 
         public bool IsIgnition { get; private set; }
 
@@ -23,6 +24,7 @@ namespace SpkNeu.Cell
             Location = cell.Location;
             Signal = cell.Signal;
             LocalSignal = cell.LocalSignal;
+            GlialCount = cell.GlialCount;
             AxsonCount = cell.AxsonCount;
             IsIgnition = cell.IsIgnition;
         }
@@ -33,6 +35,7 @@ namespace SpkNeu.Cell
             Location = loc;
             Signal = cellinfo.Signal;
             LocalSignal = cellinfo.LocalSignal;
+            GlialCount = cellinfo.GlialCount;
             AxsonCount = cellinfo.AxsonCount;
             IsIgnition = cellinfo.IsIgnition;
         }

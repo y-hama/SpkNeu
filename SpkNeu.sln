@@ -1,11 +1,15 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 14
-VisualStudioVersion = 14.0.25420.1
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.29609.76
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SpkNeu", "SpkNeu\SpkNeu.csproj", "{2C9631D8-8D2F-4CEB-A666-1DC596433207}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Viewer", "Viewer\Viewer.csproj", "{DB19433A-5E8B-4F06-8DB7-3665F77C98F0}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Connectome", "Connectome\Connectome.csproj", "{2013CE5A-4E34-4CA8-8009-6C441B775FD9}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ConnectomeVisualizer", "ConnectomeVisualizer\ConnectomeVisualizer.csproj", "{FBCDD53D-D7B3-48DD-B04E-68F35C19808F}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -21,8 +25,19 @@ Global
 		{DB19433A-5E8B-4F06-8DB7-3665F77C98F0}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{DB19433A-5E8B-4F06-8DB7-3665F77C98F0}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{DB19433A-5E8B-4F06-8DB7-3665F77C98F0}.Release|Any CPU.Build.0 = Release|Any CPU
+		{2013CE5A-4E34-4CA8-8009-6C441B775FD9}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{2013CE5A-4E34-4CA8-8009-6C441B775FD9}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{2013CE5A-4E34-4CA8-8009-6C441B775FD9}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{2013CE5A-4E34-4CA8-8009-6C441B775FD9}.Release|Any CPU.Build.0 = Release|Any CPU
+		{FBCDD53D-D7B3-48DD-B04E-68F35C19808F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{FBCDD53D-D7B3-48DD-B04E-68F35C19808F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{FBCDD53D-D7B3-48DD-B04E-68F35C19808F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{FBCDD53D-D7B3-48DD-B04E-68F35C19808F}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {F135540C-3557-412A-9EC5-A37482709E5F}
 	EndGlobalSection
 EndGlobal

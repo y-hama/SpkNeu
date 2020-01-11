@@ -19,9 +19,17 @@ namespace SpkNeu.Cell
 
         public bool IsIgnition { get; private set; } = false;
 
+        public static Location ReferencePoint { get; set; } = new Location(0, 0, 0);
+
         protected List<CellCore> Glial { get; set; } = new List<CellCore>();
         protected List<CellCore> Axson { get; set; } = new List<CellCore>();
+        public int GlialCount { get { return Glial.Count; } }
         public int AxsonCount { get { return Axson.Count; } }
+
+        protected bool HasReceptor
+        {
+            get { return Axson.FindAll(x => x is SpkNeu.Cell.Receptor).Count > 0; }
+        }
 
         public CellBase()
         {
@@ -88,10 +96,14 @@ namespace SpkNeu.Cell
         }
         public void Remove(CellCore cell, double probability = 0.5)
         {
+            if (HasReceptor && cell is Receptor)
+            {
+                probability *= 1;
+            }
             int index = Axson.IndexOf(cell);
             if (index >= 0)
             {
-                if (random.NextDouble() < probability)
+                //if (Probabirity(probability))
                 {
                     Disconnection(index);
                     Axson.Remove(cell);
@@ -133,7 +145,6 @@ namespace SpkNeu.Cell
         protected abstract double calculateUpdateQuantity(List<double> signals, List<bool> isreceptor);
         protected abstract double ignition(double updateQuantity, double localSignal);
 
-        private Location ReferencePoint { get; set; } = new Location(0, 0, 0);
         public int CompareTo(object obj)
         {
             CellBase cell = obj as CellBase;

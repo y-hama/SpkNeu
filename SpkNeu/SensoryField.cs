@@ -38,14 +38,26 @@ namespace SpkNeu
                 }
                 List<Cell.CellBase> IgnitionCells = new List<Cell.CellBase>();
                 var start = DateTime.Now;
+#if !DEBUG
+                Parallel.For(0, Neurons.Count, i =>
+                {
+                    //double value = 1;
+                    double value = 0.5 + random.NextDouble();
+                    Neurons[i].Ignition(value);
+                });
+                Parallel.For(0, Neurons.Count, i => { Neurons[i].Update(); });
+#else
                 for (int i = 0; i < Neurons.Count; i++)
                 {
-                    Neurons[i].Ignition(random.NextDouble() * 2);
+                    //double value = 1;
+                    double value = 0.5 + random.NextDouble();
+                    Neurons[i].Ignition(value);
                 }
                 for (int i = 0; i < Neurons.Count; i++)
                 {
                     Neurons[i].Update();
                 }
+#endif 
 
                 double sleep = timing - (DateTime.Now - start).TotalMilliseconds;
                 System.Threading.Thread.Sleep((int)Math.Max(0, sleep));

@@ -19,44 +19,51 @@ namespace SpkNeu
         }
 
         private double FieldSize { get; set; } = 0.75;
-        private double AxsonLength { get; set; } = 0.15;
+        private double AxsonLength { get; set; } = 0.2;
+
+        public static Location ReceptorReferencePoint { get; set; } = new Location(0, 0, 0);
 
         public List<Cell.CellBase> Neurons { get; set; } = new List<Cell.CellBase>();
         private List<int> SortID_Nearest_to_Center { get; set; } = new List<int>();
         private int ConnectedID { get; set; } = 0;
 
+        public double GetCellSignal(int index)
+        {
+            var cells = Neurons.FindAll(x => x.Location.DistanceTo(Neurons[Neurons.Count - (index + 1)].Location) < AxsonLength);
+            var cellsignal = cells.Sum(x => x.ShortTermIgnitionRatio);
+            return cellsignal;
+        }
+
         public Field(Cell.CellBase typebase, int count)
         {
             Type type = typebase.GetType();
-
             for (int i = 0; i < count; i++)
             {
                 var cell = (Cell.CellBase)Activator.CreateInstance(type);
-                cell.SetLocation(FieldSize);
                 Neurons.Add(cell);
             }
-            for (int i = 0; i < count; i++)
+            var emptyconnection = Neurons.FindAll(x => x.GlialCount == 0);
+            while (emptyconnection.Count > 0)
             {
-                for (int j = 0; j < count; j++)
+                foreach (var item in emptyconnection)
                 {
-                    if (i == j) { continue; }
-                    else
+                    item.SetLocation(FieldSize);
+                }
+                for (int i = 0; i < count; i++)
+                {
+                    for (int j = 0; j < count; j++)
                     {
-                        if (Neurons[i].Location.DistanceTo(Neurons[j].Location) < AxsonLength)
+                        if (i == j) { continue; }
+                        else
                         {
-                            Neurons[i].Add(Neurons[j]);
+                            if (Neurons[i].Location.DistanceTo(Neurons[j].Location) < AxsonLength)
+                            {
+                                Neurons[i].Add(Neurons[j]);
+                            }
                         }
                     }
                 }
-            }
-            var tmp = new Cell.CellBase[Neurons.Count];
-            Neurons.CopyTo(tmp);
-            var ntmp = new List<Cell.CellBase>(tmp);
-            ntmp.Sort();
-            //ntmp.Reverse();
-            for (int i = 0; i < ntmp.Count; i++)
-            {
-                SortID_Nearest_to_Center.Add(ntmp[i].ID);
+                emptyconnection = Neurons.FindAll(x => x.GlialCount == 0);
             }
         }
 
@@ -77,6 +84,10 @@ namespace SpkNeu
                 }
                 List<Cell.CellBase> IgnitionCells = new List<Cell.CellBase>();
                 var start = DateTime.Now;
+#if !DEBUG
+                Parallel.For(0, Neurons.Count, i => { Neurons[i].Ignition(); });
+                Parallel.For(0, Neurons.Count, i => { Neurons[i].Update(); });
+#else
                 for (int i = 0; i < Neurons.Count; i++)
                 {
                     Neurons[i].Ignition();
@@ -85,6 +96,7 @@ namespace SpkNeu
                 {
                     Neurons[i].Update();
                 }
+#endif
 
                 if (IgnitionHandler != null)
                 {
@@ -96,7 +108,22 @@ namespace SpkNeu
             }
         }
 
-        public void SetReceotor(SensoryField receptor)
+        public void SetReceptorReferencePoint(Location point)
+        {
+            ReceptorReferencePoint = point;
+            Cell.CellBase.ReferencePoint = ReceptorReferencePoint;
+            var tmp = new Cell.CellBase[Neurons.Count];
+            Neurons.CopyTo(tmp);
+            var ntmp = new List<Cell.CellBase>(tmp);
+            ntmp.Sort();
+            //ntmp.Reverse();
+            for (int i = 0; i < ntmp.Count; i++)
+            {
+                SortID_Nearest_to_Center.Add(ntmp[i].ID);
+            }
+        }
+
+        public void SetReceptor(SensoryField receptor)
         {
             for (int i = 0; i < receptor.Neurons.Count; i++)
             {

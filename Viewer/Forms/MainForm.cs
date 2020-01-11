@@ -16,12 +16,14 @@ namespace Viewer.Forms
         private Queue<List<SpkNeu.Cell.CellInfomation>> IgnitionSequence { get; set; } = new Queue<List<SpkNeu.Cell.CellInfomation>>();
         private Queue<double> HeadCellSignal { get; set; } = new Queue<double>();
 
-        private int NCount { get; set; } = 2000;
+        private int NCount { get; set; } = 2500;
 
-        private double R { get; set; } = 2;
+        private double R { get; set; } = 1.1;
+        private double Th { get; set; } = 0;
+        private double Ph { get; set; } = 0;
         private double Cx { get; set; } = 0;
         private double Cy { get; set; } = 0;
-        private double Cz { get; set; } = 2;
+        private double Cz { get; set; } = 1.1;
 
         private int IgnitionEventLocalCount { get; set; } = 0;
         private int IgnitionEventCount { get; set; } = 0;
@@ -31,8 +33,9 @@ namespace Viewer.Forms
         {
             InitializeComponent();
             pictureBox1.MouseWheel += pictureBox1_MouseWheel;
+            toolStripLabel1.Text = R.ToString();
 
-            SpkNeu.Core.FieldTest(new SpkNeu.Cell.SpikeNeuron(), NCount, 1, IgnitionEventHandler);
+            SpkNeu.Core.FieldTest(new SpkNeu.Cell.SpikeNeuron(), NCount, 5, new SpkNeu.Location(1, 0, 0), IgnitionEventHandler);
             pictureBox1_MouseMove(null, new MouseEventArgs(MouseButtons.Right, 5, pictureBox1.Width / 2, pictureBox1.Height / 2, 0));
 
         }
@@ -43,7 +46,7 @@ namespace Viewer.Forms
             {
                 IgnitionSequence.Enqueue(infomation);
                 HeadCellSignal.Enqueue(SpkNeu.Core.HeadCell.LocalSignal);
-                if (IgnitionSequence.Count > 2)
+                if (IgnitionSequence.Count > 1)
                 {
                     IgnitionSequence.Dequeue();
                     HeadCellSignal.Dequeue();
@@ -56,24 +59,28 @@ namespace Viewer.Forms
         private DateTime start { get; set; } = DateTime.Now;
         private void timer1_Tick(object sender, EventArgs e)
         {
-            double rho = 0.95;
-            fps = rho * fps + (1 - rho) * (Math.Max(1, IgnitionEventLocalCount) / ((DateTime.Now - start).TotalMilliseconds / 1000));
-            this.Text = IgnitionEventCount.ToString() + " " + Math.Round(fps, 2).ToString() + " " + Math.Round((IgnitionEventCount / (fps)), 0).ToString();
-            IgnitionEventLocalCount = 0;
-            start = DateTime.Now;
-            List<SpkNeu.Cell.CellInfomation> latest = null;
-            lock (___lockobj)
+            if (IgnitionEventLocalCount > 1)
             {
-                if (IgnitionSequence.Count > 0)
+                double rho = 0.95;
+                fps = rho * fps + (1 - rho) * (Math.Max(1, IgnitionEventLocalCount) / ((DateTime.Now - start).TotalMilliseconds / 1000));
+                this.Text = IgnitionEventCount.ToString() + " " + Math.Round(fps, 2).ToString() + " " + Math.Round((IgnitionEventCount / (fps)), 0).ToString();
+                IgnitionEventLocalCount = 0;
+                start = DateTime.Now;
+                List<SpkNeu.Cell.CellInfomation> latest = null;
+                lock (___lockobj)
                 {
-                    latest = IgnitionSequence.Peek();
+                    if (IgnitionSequence.Count > 0)
+                    {
+                        latest = IgnitionSequence.Dequeue();
+                    }
                 }
-            }
-            if (latest != null)
-            {
-                Bitmap map = DrawMap(Math.Min(pictureBox1.Width, pictureBox1.Height), latest);
-                if (map != null) { pictureBox1.Image = map; }
-                GC.Collect();
+                if (latest != null)
+                {
+                    toolStripLabel2.Text = SpkNeu.Core.Signal(0).ToString();
+                    Bitmap map = DrawMap(Math.Min(pictureBox1.Width, pictureBox1.Height), latest);
+                    if (map != null) { pictureBox1.Image = map; }
+                    //GC.Collect();
+                }
             }
         }
 
@@ -115,16 +122,17 @@ namespace Viewer.Forms
                     {
                         c = Color.FromArgb(byte.MaxValue, 0, b, b);
                     }
-                    int es = (int)(sizeoder * zodr);
+                    int es = (int)(sizeoder * zodr * ((double)item.AxsonCount / item.GlialCount));
                     g.FillEllipse(new SolidBrush(c), new RectangleF(new PointF(x - es / 2, y - es / 2), new SizeF(es, es)));
-                    Pen p = new Pen(Color.FromArgb(100, Color.Gray), 1);
+                    Pen p = new Pen(Color.FromArgb((byte)(100 * zodr), Color.Gray), 1);
                     if (item.IsIgnition)
                     {
                         p = new Pen(Color.FromArgb((byte)(byte.MaxValue * zodr), Color.Red), 1.5f);
                     }
                     g.DrawEllipse(p, new RectangleF(new PointF(x - es / 2 + 0.5f, y - es / 2 + 0.5f), new SizeF(es - 1, es - 1)));
-                    Font font = new Font(DefaultFont.Name, (float)(DefaultFont.Size * zodr));
-                    g.DrawString(item.AxsonCount.ToString(), font, new SolidBrush(p.Color), new PointF((float)x - DefaultFont.Size / 2, (float)y - DefaultFont.Size / 2));
+                    Font font = new Font(DefaultFont.Name, (float)(DefaultFont.Size * zodr) * 0.75f);
+                    string tag = item.AxsonCount.ToString() + "/" + item.GlialCount.ToString();
+                    g.DrawString(tag, font, new SolidBrush(p.Color), new PointF((float)x - DefaultFont.Size * tag.Length * 1 / 4, (float)y - DefaultFont.Size / 2));
                 }
             }
 
@@ -141,21 +149,24 @@ namespace Viewer.Forms
 
         private void pictureBox1_MouseMove(object sender, MouseEventArgs e)
         {
-            double th = 0, ph = 0;
             if (e.Button == MouseButtons.Left)
             {
                 double width = 0.75;
                 double ex = (double)e.X / pictureBox1.Width, ey = (double)e.Y / pictureBox1.Height;
-                th = Math.Max(-width, Math.Min(width, (ex - 0.5) * 2));
-                ph = Math.Max(-width, Math.Min(width, (ey - 0.5) * 2));
-                th = 2 * Math.PI * th;
-                ph = 2 * Math.PI * ph;
+                Th = Math.Max(-width, Math.Min(width, (ex - 0.5) * 2));
+                Ph = Math.Max(-width, Math.Min(width, (ey - 0.5) * 2));
+                Th = 2 * Math.PI * Th;
+                Ph = 2 * Math.PI * Ph;
+            }
+            else if (e.Button != MouseButtons.None)
+            {
+                Th = Ph = 0;
             }
             if (e.Button != MouseButtons.None)
             {
-                Cx = R * Math.Sin(th) * Math.Cos(-ph);
-                Cy = R * Math.Sin(th) * Math.Sin(-ph);
-                Cz = R * Math.Cos(th);
+                Cx = R * Math.Sin(Th) * Math.Cos(-Ph);
+                Cy = R * Math.Sin(Th) * Math.Sin(-Ph);
+                Cz = R * Math.Cos(Th);
             }
         }
 
@@ -163,13 +174,18 @@ namespace Viewer.Forms
         {
             if (e.Delta > 0)
             {
-                R += 0.1;
+                R -= 0.05;
+                if (R < 0.05) { R = 0.05; }
             }
             else
             {
-                R -= 0.1;
-                if (R < 0.1) { R = 0.1; }
+                R += 0.05;
+                if (R > 1) { R = 1; }
             }
+            Cx = R * Math.Sin(Th) * Math.Cos(-Ph);
+            Cy = R * Math.Sin(Th) * Math.Sin(-Ph);
+            Cz = R * Math.Cos(Th);
+            toolStripLabel1.Text = R.ToString();
         }
 
         private void button1_Click(object sender, EventArgs e)

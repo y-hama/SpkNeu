@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace SpkNeu
+namespace Connectome
 {
     public class Location
     {
@@ -14,7 +14,7 @@ namespace SpkNeu
 
         public new string ToString()
         {
-            return string.Format("X:{0}, Y:{1}, Z:{2}, D:{3}", X, Y, Z, DistanceTo(new SpkNeu.Location()));
+            return string.Format("X:{0}, Y:{1}, Z:{2}, D:{3}", X, Y, Z, DistanceTo(new Location()));
         }
 
         public void Copy(Location location)
@@ -132,22 +132,22 @@ namespace SpkNeu
             ViewMatrix[3, 2] = 0;
             ViewMatrix[3, 3] = 1;
 
-            ProjectionMatrix[0, 0] = 1 / Math.Tan(angle / 2);
+            ProjectionMatrix[0, 0] = 1;
             ProjectionMatrix[0, 1] = 0;
             ProjectionMatrix[0, 2] = 0;
             ProjectionMatrix[0, 3] = 0;
             ProjectionMatrix[1, 0] = 0;
-            ProjectionMatrix[1, 1] = 1 / Math.Tan(angle / 2);
+            ProjectionMatrix[1, 1] = 1;
             ProjectionMatrix[1, 2] = 0;
             ProjectionMatrix[1, 3] = 0;
             ProjectionMatrix[2, 0] = 0;
             ProjectionMatrix[2, 1] = 0;
-            ProjectionMatrix[2, 2] = (1) / ((far - near)) * far;
-            ProjectionMatrix[2, 3] = 1;
+            ProjectionMatrix[2, 2] = 1;
+            ProjectionMatrix[2, 3] = 0;
             ProjectionMatrix[3, 0] = 0;
             ProjectionMatrix[3, 1] = 0;
-            ProjectionMatrix[3, 2] = -(near) / ((far - near)) * far;
-            ProjectionMatrix[3, 3] = 0;
+            ProjectionMatrix[3, 2] = 0;
+            ProjectionMatrix[3, 3] = 1;
 
             for (int i = 0; i < 4; i++)
             {
