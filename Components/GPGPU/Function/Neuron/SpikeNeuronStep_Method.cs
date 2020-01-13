@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace Components.GPGPU.Function.Neuron
 {
-    class SpikeNeuron_Method : FunctionBase
+    class SpikeNeuronStep_Method : FunctionBase
     {
 
         protected override void CreateGpuSource()

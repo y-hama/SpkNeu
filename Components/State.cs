@@ -92,42 +92,6 @@ namespace Components
 
         private static void GPGPU_TestStart()
         {
-            Components.Imaging.Core.Instance.Initialize(CaptureMode.Device_Camera);
-
-            (new System.Threading.Tasks.Task(() =>
-            {
-                Random rand = new Random();
-                RNdMatrix inmat = new RNdMatrix(1, 3, 320, 240);
-                RNdMatrix outmat = new RNdMatrix(1, 3, 320, 240);
-
-                var unit = new GPGPU.Layer.Unit.Convolution.Convolution()
-                {
-                    Activation = true,
-                    KernelSize = 22,
-                    OutputChannels = 3,
-                    Rho = 0.001,
-                };
-                unit.Initialize(inmat.Clone());
-                unit.Confirm();
-
-                int counter = 0;
-                double time = 0;
-                while (true)
-                {
-                    time = 0;
-                    var input = Imaging.Core.Instance.GetFrame(inmat.Shape);
-                    unit.Input = input.Clone();
-                    time += unit.Action(ActionMode.Forward);
-
-                    var sigma = unit.Output - input;
-                    unit.Sigma = sigma;
-                    //time += unit.Action(ActionMode.Back);
-
-                    unit.Output.Show("output", 0);
-                    sigma.Show("sigma", 0);
-                    Terminal.WriteLine(EventState.State, "Step:{0}, TimeSpan[ms]:{1}, FPS:{2}", counter++, (int)time, (int)(1000.0 / time));
-                }
-            })).Start();
         }
     }
 }
