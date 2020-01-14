@@ -10,17 +10,28 @@ namespace Components.GPGPU
 {
     class Core
     {
-        private const string METHOD_NAMESPACE1 = "Components.GPGPU.Function.Method";
-        private const string METHOD_NAMESPACE2 = "Components.GPGPU.Function.Optimization.Method";
-        private const string METHOD_NAMESPACE3 = "Components.GPGPU.Function.Neuron";
-        private const string METHOD_BASETYPE = "Components.GPGPU.Function.FunctionBase";
+        //private const string METHOD_SHARED_NAMESPACE = "Components.GPGPU.Function.Source.Shared";
+        //private const string METHOD_NAMESPACE1 = "Components.GPGPU.Function.Method";
+        //private const string METHOD_NAMESPACE2 = "Components.GPGPU.Function.Optimization.Method";
+        //private const string METHOD_NAMESPACE3 = "Components.GPGPU.Function.Neuron";
+        //private const string METHOD_BASETYPE = "Components.GPGPU.Function.FunctionBase";
 
-        private List<string> NamespaceList = new List<string>()
+        private static Assembly Assembly { get; set; } = null;
+        public static void SetAssembly(Assembly asm)
         {
-            METHOD_NAMESPACE1,
-            METHOD_NAMESPACE2,
-            METHOD_NAMESPACE3,
-        };
+            Assembly = asm;
+        }
+
+        private static List<string> SharedNameSpaceList { get; set; } = new List<string>();
+        private static List<string> NameSpaceList { get; set; } = new List<string>();
+        public static void AddNameSpace(string nameSpace)
+        {
+            NameSpaceList.Add(nameSpace);
+        }
+        public static void AddSharedNameSpace(string nameSpace)
+        {
+            SharedNameSpaceList.Add(nameSpace);
+        }
 
         private static Core _instance = new Core();
         public static Core Instance { get { return _instance; } }
@@ -105,11 +116,30 @@ namespace Components.GPGPU
             if (PlatformInitialized && OptionalUseGPU)
             {
                 #region BuildProgram
-                Assembly asm = Assembly.GetExecutingAssembly();
-                List<Function.FunctionBase> fList = new List<Function.FunctionBase>();
-                foreach (var item in asm.GetTypes())
+                Assembly asm = Assembly;
+                if (asm == null)
                 {
-                    if (NamespaceList.Contains(item.Namespace))
+                    asm = Assembly.GetExecutingAssembly();
+                }
+
+                string sharedmethod = string.Empty;
+                #region SharedMethod
+                var types = asm.GetTypes();
+                foreach (var item in types)
+                {
+                    if (SharedNameSpaceList.Contains(item.Namespace))
+                    {
+                        var source = (Function.SourceCode)Activator.CreateInstance(item);
+                        sharedmethod += source.Source + "\n";
+                        Build(source.Name, source.Source);
+                    }
+                }
+                #endregion
+
+                List<Function.FunctionBase> fList = new List<Function.FunctionBase>();
+                foreach (var item in types)
+                {
+                    if (NameSpaceList.Contains(item.Namespace))
                     {
                         fList.Add((Function.FunctionBase)Activator.CreateInstance(item));
                     }
@@ -122,7 +152,8 @@ namespace Components.GPGPU
                         var sourceList = item.GetSourceList();
                         foreach (var source in sourceList)
                         {
-                            Build(source.Item1, source.Item2);
+                            //Console.WriteLine(sharedmethod + source.Item2 + "\n");
+                            Build(source.Item1, sharedmethod + source.Item2);
                         }
                     }
                 }

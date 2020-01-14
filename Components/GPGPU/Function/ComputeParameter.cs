@@ -26,10 +26,10 @@ namespace Components.GPGPU.Function
             switch (mode)
             {
                 case Components.State.MemoryModeSet.ReadOnly:
-                    MemoryMode = ComputeMemoryFlags.ReadOnly | ComputeMemoryFlags.UseHostPointer;
+                    MemoryMode = ComputeMemoryFlags.ReadOnly | ComputeMemoryFlags.CopyHostPointer;
                     break;
                 case Components.State.MemoryModeSet.WriteOnly:
-                    MemoryMode = ComputeMemoryFlags.WriteOnly | ComputeMemoryFlags.UseHostPointer;
+                    MemoryMode = ComputeMemoryFlags.WriteOnly | ComputeMemoryFlags.CopyHostPointer;
                     break;
                 case Components.State.MemoryModeSet.Parameter:
                     MemoryMode = ComputeMemoryFlags.None;

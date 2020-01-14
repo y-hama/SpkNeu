@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Reflection;
 
 namespace Components
 {
@@ -73,13 +74,23 @@ namespace Components
         }
         #endregion
 
-        public static void Initialize(bool testmode = false)
+        public static void SetAssembly(Assembly targetasm)
+        {
+            GPGPU.Core.SetAssembly(targetasm);
+        }
+
+        public static void AddSourceGroup(string nameSpace)
+        {
+            GPGPU.Core.AddNameSpace(nameSpace);
+        }
+        public static void AddSharedSourceGroup(string nameSpace)
+        {
+            GPGPU.Core.AddSharedNameSpace(nameSpace);
+        }
+
+        public static void Initialize()
         {
             GPGPU_Startup();
-            if (testmode)
-            {
-                GPGPU_TestStart();
-            }
         }
 
         private static void GPGPU_Startup()
@@ -88,10 +99,6 @@ namespace Components
             Terminal.WriteLine(0, GPGPU.Core.Instance.ProcesserStatus);
 
             GPGPU.Core.Instance.BuildAllMethod();
-        }
-
-        private static void GPGPU_TestStart()
-        {
         }
     }
 }

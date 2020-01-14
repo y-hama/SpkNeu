@@ -73,6 +73,28 @@ namespace Components
             set { Data[ch * this.AreaSize + idx] = value; }
         }
 
+        public void CopyTo(RNdArray array)
+        {
+            if (IsSimilarity(this, array))
+            {
+                for (int i = 0; i < Length; i++)
+                {
+                    array[i] = this[i];
+                }
+            }
+        }
+
+        public void CopyBy(Real[] array)
+        {
+            if (this.Length == array.Length)
+            {
+                for (int i = 0; i < Length; i++)
+                {
+                    this[i] = array[i];
+                }
+            }
+        }
+
         public override void Show(string name, int batchindex = 0)
         {
             throw new NotImplementedException();

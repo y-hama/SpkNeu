@@ -37,6 +37,20 @@ namespace Components.GPGPU.Function
                 ValueMode = vmode;
             }
         }
+
+        protected class ComputeBufferSet : IDisposable
+        {
+            public ComputeBuffer<Real> Buffer { get; set; }
+            public ComputeBufferSet(ComputeParameter parmeter, List<ComputeContext> Context, int sellectionIndex)
+            {
+                Buffer = new ComputeBuffer<Real>(Context[sellectionIndex], parmeter.MemoryMode, parmeter.Array.Data);
+            }
+
+            public void Dispose()
+            {
+                Buffer.Dispose();
+            }
+        }
         #endregion
 
         #region Constructor
@@ -99,9 +113,9 @@ namespace Components.GPGPU.Function
             GpuSource.Add(code);
         }
 
-        protected ComputeBuffer<Real> ConvertBuffer(ComputeParameter parmeter)
+        protected ComputeBufferSet ConvertBuffer(ComputeParameter parmeter)
         {
-            return new ComputeBuffer<Real>(Context[sellectionIndex], parmeter.MemoryMode, parmeter.Array.Data);
+            return new ComputeBufferSet(parmeter, Context, sellectionIndex);
         }
 
         protected void ClearGpuParameter()
@@ -195,18 +209,18 @@ namespace Components.GPGPU.Function
             buffer.Array.Data = (Real[])data.Clone();
         }
 
-        protected void SetParameter(ComputeBuffer<Real> instance, ParamMode mode = FunctionBase.ParamMode.Memory)
+        protected void SetParameter(ComputeBufferSet instance, ParamMode mode = FunctionBase.ParamMode.Memory)
         {
-            GpuParameter[sellectionIndex].Add(new GpuParamSet(instance, mode));
+            GpuParameter[sellectionIndex].Add(new GpuParamSet(instance.Buffer, mode));
         }
         protected void SetParameter(object instance, ValueMode vmode, ParamMode mode = FunctionBase.ParamMode.Value)
         {
             GpuParameter[sellectionIndex].Add(new GpuParamSet(instance, vmode, mode));
         }
 
-        protected void ReadBuffer(ComputeBuffer<Real> mem, ref Real[] buffer)
+        protected void ReadBuffer(ComputeBufferSet mem, ref Real[] buffer)
         {
-            Queue[sellectionIndex].ReadFromBuffer(mem, ref buffer, true, null);
+            Queue[sellectionIndex].ReadFromBuffer(mem.Buffer, ref buffer, true, null);
         }
 
         public void Do(bool ForceUpdate, ComputeVariable variable)

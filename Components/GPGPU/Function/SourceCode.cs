@@ -15,7 +15,13 @@ namespace Components.GPGPU.Function
         protected enum ElementType
         {
             INT,
-            FLOAT
+            FLOAT,
+        }
+        protected enum ReturnType
+        {
+            INT,
+            FLOAT,
+            VOID,
         }
         private class ParameterSet
         {
@@ -59,7 +65,7 @@ namespace Components.GPGPU.Function
 
         #region Property
         private List<ParameterSet> pList = new List<ParameterSet>();
-        private const string HeaderFormat = @"__{0} void {1}({2})";
+        private const string HeaderFormat = @"{0} {1} {2}({3})";
         protected const string GET_GLOBAL_ID_FORMAT = @"int i{0} = get_global_id({1});";
         private const int MAX_GLOBAL_ID_COUNT = 3;
         private string argumentstring { get; set; }
@@ -70,7 +76,7 @@ namespace Components.GPGPU.Function
         {
             get
             {
-                if (bodystring == null) { CreateSourceInterface(); }
+                if (sourcestring == null || sourcestring == string.Empty) { CreateSourceInterface(); }
                 return sourcestring.Replace("\r", "").Replace("\n", "");
             }
         }
@@ -85,8 +91,15 @@ namespace Components.GPGPU.Function
         {
             CreateSource();
             CreateArguments();
+            if(Name == "SpikeNeuronInit_Source")
+            {
+
+            }
+            string access = IsLocalFunction ? "" : "__kernel";
+            string type = IsLocalFunction ? Return.ToString().ToLower() : "void";
             sourcestring = string.Format(HeaderFormat,
-                          "kernel",
+                          access,
+                          type,
                           Name,
                           argumentstring)
                           + "{" +
@@ -109,6 +122,8 @@ namespace Components.GPGPU.Function
 
         #region Abstruct/Virtual
         public abstract string Name { get; }
+        protected virtual bool IsLocalFunction { get { return false; } }
+        protected virtual ReturnType Return { get { return ReturnType.VOID; } }
         protected abstract void ParameterConfigration();
         protected abstract void CreateSource();
         #endregion
@@ -132,7 +147,7 @@ namespace Components.GPGPU.Function
 
         protected void AddMethodBody(string lines)
         {
-            bodystring += lines;
+            bodystring += lines.Replace("\r", "").Replace("\n", "");
         }
         #endregion
     }
