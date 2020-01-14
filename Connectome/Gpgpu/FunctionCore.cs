@@ -18,6 +18,10 @@ namespace Connectome.Gpgpu
         {
             return GpuSource.Shared.Distance.Distance_cpu(x1, y1, z1, x2, y2, z2);
         }
+        public static int StartPosition(int idx, Real[] connectionCount)
+        {
+            return GpuSource.Shared.StartPosition.StartPosition_cpu(idx, connectionCount);
+        }
         #endregion
     }
 }

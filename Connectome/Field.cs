@@ -111,24 +111,41 @@ namespace Connectome
                     AxsonConnectCount[i] = 0;
                 }
             }
-            ConnectWeight = new RNdArray(AxsonConnectMatrix.Length);
-            // ★WeightInitialize
 
+            CellValue = new RNdArray(Cells.Count);
+
+            Components.GPGPU.ComputeVariable variable;
+            var random = new Random();
+            ConnectWeight = new RNdArray(AxsonConnectMatrix.Length);
+            Parallel.For(0, ConnectWeight.Length, i =>
+            {
+                ConnectWeight[i] = random.NextDouble();
+            });
+            var weightInitialize = new Gpgpu.Function.WeightInitialize();
+            weightInitialize.FunctionConfiguration();
+            variable = new Components.GPGPU.ComputeVariable();
+            variable.Add("ConnectWeight", ConnectWeight, State.MemoryModeSet.WriteOnly);
+            variable.Add("AxsonConnectCount", AxsonConnectCount, State.MemoryModeSet.ReadOnly);
+            variable.Add("AxsonConnectMatrix", AxsonConnectMatrix, State.MemoryModeSet.ReadOnly);
+            variable.Argument.Add(new Components.GPGPU.ComputeVariable.ValueSet("CellCount") { Value = CellValue.Length });
+            variable.Argument.Add(new Components.GPGPU.ComputeVariable.ValueSet("NeuronCount") { Value = NeuronCount });
+            weightInitialize.Do(false, variable);
 
             new System.Threading.Thread(() =>
             {
                 var function = new Gpgpu.Function.FieldUpdateStep();
                 function.FunctionConfiguration();
-                CellValue = new RNdArray(Cells.Count);
+                RNdArray resValue = new RNdArray(Cells.Count);
                 while (!Core.IsTerminate)
                 {
                     CellValue.CopyBy(Cells.Select(x => x.Signal).ToArray());
 
-                    Components.GPGPU.ComputeVariable variable = new Components.GPGPU.ComputeVariable();
-                    variable.Add("CellValue", CellValue, State.MemoryModeSet.WriteOnly);
+                    variable = new Components.GPGPU.ComputeVariable();
+                    variable.Add("CellValue", CellValue, State.MemoryModeSet.ReadOnly);
                     variable.Add("ConnectWeight", ConnectWeight, State.MemoryModeSet.WriteOnly);
                     variable.Add("AxsonConnectCount", AxsonConnectCount, State.MemoryModeSet.ReadOnly);
                     variable.Add("AxsonConnectMatrix", AxsonConnectMatrix, State.MemoryModeSet.ReadOnly);
+                    variable.Add("resValue", resValue, State.MemoryModeSet.WriteOnly);
                     variable.Argument.Add(new Components.GPGPU.ComputeVariable.ValueSet("CellCount") { Value = CellValue.Length });
                     variable.Argument.Add(new Components.GPGPU.ComputeVariable.ValueSet("NeuronCount") { Value = NeuronCount });
 

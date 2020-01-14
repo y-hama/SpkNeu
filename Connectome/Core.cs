@@ -11,7 +11,7 @@ namespace Connectome
         public static bool IsTerminate { get; private set; } = false;
         public void Terminate() { IsTerminate = true; }
 
-        public static int NeuronCount { get; set; } = 2000;
+        public static int NeuronCount { get; set; } = 1000;
         public static double FieldArea { get; set; } = 1;
         public static double AxsonLengthDefault { get; set; } = 0.25;
 
