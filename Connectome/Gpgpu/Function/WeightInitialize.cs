@@ -12,6 +12,7 @@ namespace Connectome.Gpgpu.Function
 
         protected override void CreateGpuSource()
         {
+            AddSource(new GpuSource.Method.WeightInitialize_Source());
         }
 
         protected override void CpuFunction(ComputeVariable variable)
@@ -25,28 +26,25 @@ namespace Connectome.Gpgpu.Function
 
             for (int i0 = 0; i0 < cellCount; i0++)
             {
-                int axsonCount = (int)axsonConnectCount[i0];
-                if (axsonCount != 0)
-                {
-                    int pos = FunctionCore.StartPosition(i0, axsonConnectCount);
-                    float sum = 0;
-                    for (int i = 0; i < axsonCount; i++)
-                    {
-                        sum += connectWeight[pos + i];
-                    }
-                    if (sum != 0)
-                    {
-                        for (int i = 0; i < axsonCount; i++)
-                        {
-                            connectWeight[pos + i] /= sum;
-                        }
-                    }
-                }
+                FunctionCore.WeightNormalize(i0, connectWeight, axsonConnectCount);
             }
         }
 
         protected override void GpuFunction(ComputeVariable variable)
         {
+            var connectWeight = variable.Parameter[0].Instance.Array.Data;
+            var axsonConnectCount = variable.Parameter[1].Instance.Array.Data;
+
+            int cellCount = (int)variable["CellCount"].Value;
+
+            using (ComputeBufferSet _connectWeight = ConvertBuffer(variable[0].Instance))
+            using (ComputeBufferSet _axsonConnectCount = ConvertBuffer(variable[1].Instance))
+            {
+                SetParameter(_connectWeight);
+                SetParameter(_axsonConnectCount);
+                Execute(cellCount);
+                ReadBuffer(_connectWeight, ref connectWeight);
+            }
         }
     }
 }

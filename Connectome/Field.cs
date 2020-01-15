@@ -11,6 +11,10 @@ namespace Connectome
     {
         private class Cell : CellCore
         {
+            public IgnitionState State { get; set; }
+
+            public double Activity { get; set; }
+
             public double AxsonLength { get; private set; }
 
             public List<int> AxsonConnectedID { get; set; } = new List<int>();
@@ -19,11 +23,21 @@ namespace Connectome
 
             public Cell(Location loc, double length) : base(loc)
             {
+                State = IgnitionState.Stable;
                 AxsonLength = length;
             }
         }
 
         #region Property
+        private double stepTime = 0;
+        public double StepTime { get { return Math.Max(1, stepTime); } }
+
+        private double totalStepTime = 0;
+        public double TotalStepTime { get { return Math.Max(1, totalStepTime); } }
+
+        private long stepCount = 0;
+        public long StepCount { get { return stepCount; } }
+
         private List<CellCore> Cells { get; set; } = new List<CellCore>();
         private int NeuronCount { get; set; }
 
@@ -42,13 +56,27 @@ namespace Connectome
         }
         #endregion
 
-        #region Buffer
-        private RNdArray CellValue { get; set; }
-        private RNdArray ConnectWeight { get; set; }
+        #region BufferCellEnergy
+        private RNdArray cellValue { get; set; }
+        private RNdArray cellActivity { get; set; }
+        private RNdArray cellEnergy { get; set; }
+        private RNdArray cellState { get; set; }
+        private RNdArray connectWeight { get; set; }
 
-        private RNdArray AxsonConnectCount { get; set; }
-        private RNdArray AxsonConnectMatrix { get; set; }
+        private RNdArray axsonConnectCount { get; set; }
+        private RNdArray axsonConnectMatrix { get; set; }
         #endregion
+
+        public List<CellState> GetState()
+        {
+            List<CellState> res = new List<Connectome.CellState>();
+            foreach (var item in Cells.FindAll(x => x is Cell))
+            {
+                var cell = item as Cell;
+                res.Add(new Connectome.CellState(cell.Location, cell.Signal, cell.State));
+            }
+            return res;
+        }
 
         public void AddReceptor(Receptor.Receptor receptor)
         {
@@ -91,43 +119,50 @@ namespace Connectome
             });
 
             int len = Cells.Sum(x => (x is Cell) ? (x as Cell).AxsonConnectedID.Count : 0);
-            AxsonConnectMatrix = new RNdArray(len);
-            AxsonConnectCount = new RNdArray(Cells.Count);
+            axsonConnectMatrix = new RNdArray(len);
+            axsonConnectCount = new RNdArray(Cells.Count);
             int index = 0;
             for (int i = 0; i < Cells.Count; i++)
             {
                 if (Cells[i] is Cell)
                 {
                     var cell = (Cells[i] as Cell);
-                    AxsonConnectCount[i] = cell.AxsonConnectedID.Count;
+                    axsonConnectCount[i] = cell.AxsonConnectedID.Count;
                     for (int j = 0; j < cell.AxsonConnectedID.Count; j++)
                     {
-                        AxsonConnectMatrix[index] = cell.AxsonConnectedID[j];
+                        axsonConnectMatrix[index] = cell.AxsonConnectedID[j];
                         index++;
                     }
                 }
                 else
                 {
-                    AxsonConnectCount[i] = 0;
+                    axsonConnectCount[i] = 0;
                 }
             }
 
-            CellValue = new RNdArray(Cells.Count);
-
             Components.GPGPU.ComputeVariable variable;
             var random = new Random();
-            ConnectWeight = new RNdArray(AxsonConnectMatrix.Length);
-            Parallel.For(0, ConnectWeight.Length, i =>
+            cellValue = new RNdArray(Cells.Count);
+            cellActivity = new RNdArray(Cells.Count);
+            cellState = new RNdArray(Cells.Count);
+            connectWeight = new RNdArray(axsonConnectMatrix.Length);
+            cellEnergy = new RNdArray(Cells.Count);
+
+            var resValue = new RNdArray(Cells.Count);
+            var resActivity = new RNdArray(Cells.Count);
+            var resState = new RNdArray(Cells.Count);
+
+            Parallel.For(0, connectWeight.Length, i =>
             {
-                ConnectWeight[i] = random.NextDouble();
+                connectWeight[i] = random.NextDouble();
             });
             var weightInitialize = new Gpgpu.Function.WeightInitialize();
             weightInitialize.FunctionConfiguration();
             variable = new Components.GPGPU.ComputeVariable();
-            variable.Add("ConnectWeight", ConnectWeight, State.MemoryModeSet.WriteOnly);
-            variable.Add("AxsonConnectCount", AxsonConnectCount, State.MemoryModeSet.ReadOnly);
-            variable.Add("AxsonConnectMatrix", AxsonConnectMatrix, State.MemoryModeSet.ReadOnly);
-            variable.Argument.Add(new Components.GPGPU.ComputeVariable.ValueSet("CellCount") { Value = CellValue.Length });
+            variable.Add("ConnectWeight", connectWeight, State.MemoryModeSet.WriteOnly);
+            variable.Add("AxsonConnectCount", axsonConnectCount, State.MemoryModeSet.ReadOnly);
+            variable.Add("AxsonConnectMatrix", axsonConnectMatrix, State.MemoryModeSet.ReadOnly);
+            variable.Argument.Add(new Components.GPGPU.ComputeVariable.ValueSet("CellCount") { Value = cellValue.Length });
             variable.Argument.Add(new Components.GPGPU.ComputeVariable.ValueSet("NeuronCount") { Value = NeuronCount });
             weightInitialize.Do(false, variable);
 
@@ -135,29 +170,57 @@ namespace Connectome
             {
                 var function = new Gpgpu.Function.FieldUpdateStep();
                 function.FunctionConfiguration();
-                RNdArray resValue = new RNdArray(Cells.Count);
-                while (!Core.IsTerminate)
+                while (!CoreObject.IsTerminate)
                 {
-                    CellValue.CopyBy(Cells.Select(x => x.Signal).ToArray());
+                    DateTime start = DateTime.Now;
+                    cellValue.CopyBy(Cells.Select(x => x.Signal).ToArray());
+                    cellActivity.CopyBy(Cells.Select(x => (x is Cell) ? (Real)(x as Cell).Activity : x.Signal).ToArray());
+                    cellState.CopyBy(Cells.Select(x => (x is Cell) ? (Real)(int)(x as Cell).State : 1).ToArray());
 
                     variable = new Components.GPGPU.ComputeVariable();
-                    variable.Add("CellValue", CellValue, State.MemoryModeSet.ReadOnly);
-                    variable.Add("ConnectWeight", ConnectWeight, State.MemoryModeSet.WriteOnly);
-                    variable.Add("AxsonConnectCount", AxsonConnectCount, State.MemoryModeSet.ReadOnly);
-                    variable.Add("AxsonConnectMatrix", AxsonConnectMatrix, State.MemoryModeSet.ReadOnly);
+                    variable.Add("cellValue", cellValue, State.MemoryModeSet.ReadOnly);
+                    variable.Add("cellActivity", cellActivity, State.MemoryModeSet.ReadOnly);
+                    variable.Add("cellState", cellState, State.MemoryModeSet.ReadOnly);
+                    variable.Add("connectWeight", connectWeight, State.MemoryModeSet.ReadOnly);
+                    variable.Add("cellEnergy", cellEnergy, State.MemoryModeSet.WriteOnly);
+                    variable.Add("axsonConnectCount", axsonConnectCount, State.MemoryModeSet.ReadOnly);
+                    variable.Add("axsonConnectMatrix", axsonConnectMatrix, State.MemoryModeSet.ReadOnly);
                     variable.Add("resValue", resValue, State.MemoryModeSet.WriteOnly);
-                    variable.Argument.Add(new Components.GPGPU.ComputeVariable.ValueSet("CellCount") { Value = CellValue.Length });
+                    variable.Add("resActivity", resActivity, State.MemoryModeSet.WriteOnly);
+                    variable.Add("resState", resState, State.MemoryModeSet.WriteOnly);
+                    variable.Argument.Add(new Components.GPGPU.ComputeVariable.ValueSet("CellCount") { Value = cellValue.Length });
                     variable.Argument.Add(new Components.GPGPU.ComputeVariable.ValueSet("NeuronCount") { Value = NeuronCount });
 
                     function.Do(false, variable);
 
-                    Parallel.For(0, NeuronCount, new ParallelOptions() { MaxDegreeOfParallelism = 1 }, i =>
+                    //var resStateArray = resState.Data.Select(x => (Cell.IgnitionState)Enum.ToObject(typeof(Cell.IgnitionState), (int)x)).ToArray();
+
+#if false
+                    Parallel.For(0, NeuronCount, i =>
                     {
+#else
+                    for (int i = 0; i < NeuronCount; i++)
+                    {
+#endif
                         if (Cells[i] is Cell)
                         {
-                            Cells[i].Signal = CellValue[i];
+                            var cell = (Cells[i] as Cell);
+                            cell.Signal = resValue[i];
+                            cell.Activity = resActivity[i];
+                            //cell.State = resStateArray[i];
+                            cell.State = (Cell.IgnitionState)Enum.ToObject(typeof(Cell.IgnitionState), (int)resState[i]);
                         }
-                    });
+                    }
+#if false
+                    );
+#endif
+
+
+
+                    stepCount++;
+                    stepTime = (stepTime + function.StepElapsedSpan.TotalMilliseconds) / 2;
+                    totalStepTime = (totalStepTime + (DateTime.Now - start).TotalMilliseconds) / 2;
+                    System.Threading.Thread.Sleep(CoreObject.Interval);
                 }
             }).Start();
         }

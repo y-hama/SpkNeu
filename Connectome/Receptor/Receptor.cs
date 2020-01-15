@@ -29,7 +29,7 @@ namespace Connectome.Receptor
 
             new System.Threading.Thread(() =>
             {
-                while (!Core.IsTerminate)
+                while (!CoreObject.IsTerminate)
                 {
                     StepStart();
                     for (int i = 0; i < count; i++)

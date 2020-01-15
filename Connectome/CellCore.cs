@@ -7,10 +7,18 @@ using Components;
 
 namespace Connectome
 {
-    abstract class CellCore
+    public abstract class CellCore
     {
         private static int idseed { get; set; } = 0;
         public int ID { get; private set; } = -1;
+
+        public enum IgnitionState
+        {
+            Stable,
+            Ignition,
+            Overshoot,
+            Cooling,
+        }
 
         public Real Signal { get; set; }
 

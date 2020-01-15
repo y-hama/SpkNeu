@@ -14,7 +14,7 @@ namespace Connectome.Calculation
             public double AxsonLength { get; private set; }
             public new string ToString()
             {
-                return Location.ToString() + ", " + string.Format("ax{0}", AxsonLength);
+                return Location.ToString() + ", " + string.Format("ax:{0}", AxsonLength);
             }
 
             public NeuronSource(Location loc, double length)
@@ -67,7 +67,8 @@ namespace Connectome.Calculation
                     {
                         if (hasRef.Data[i] == 0)
                         {
-                            var loc = new Location(random, area);
+                            var loc = new Location(random, axson[i]) + list[random.Next(count)];
+                            //var loc = new Location(random, area);
                             list[i] = loc;
                             px[i] = loc.X;
                             py[i] = loc.Y;

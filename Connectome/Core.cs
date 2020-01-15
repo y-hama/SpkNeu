@@ -8,14 +8,35 @@ namespace Connectome
 {
     public class Core
     {
-        public static bool IsTerminate { get; private set; } = false;
-        public void Terminate() { IsTerminate = true; }
+        public static void Terminate() { CoreObject.IsTerminate = true; }
 
-        public static int NeuronCount { get; set; } = 1000;
-        public static double FieldArea { get; set; } = 1;
-        public static double AxsonLengthDefault { get; set; } = 0.25;
+        public static double StepTime
+        {
+            get
+            {
+                return CoreObject.Field.StepTime;
+            }
+        }
+        public static double TotalStepTime
+        {
+            get
+            {
+                return CoreObject.Field.TotalStepTime;
+            }
+        }
+        public static long StepCount
+        {
+            get
+            {
+                return CoreObject.Field.StepCount;
+            }
+        }
 
-        private static Field Field { get; set; }
+        public static int Interval
+        {
+            set { CoreObject.Interval = value; }
+        }
+
 
         public static void Initialize()
         {
@@ -24,12 +45,13 @@ namespace Connectome
             Components.State.AddSourceGroup("Connectome.Gpgpu.Function");
             Components.State.Initialize();
 
-            var noize = new Receptor.RandomNoize(100, new Location(), 0.1);
+            CoreObject.Field = new Connectome.Field(new Calculation.InitializeNeuron(CoreObject.NeuronCount, CoreObject.FieldArea, CoreObject.AxsonLengthDefault));
+            foreach (var item in CoreObject.Receptor)
+            {
+                CoreObject.Field.AddReceptor(item);
+            }
 
-            Field = new Connectome.Field(new Calculation.InitializeNeuron(NeuronCount, FieldArea, AxsonLengthDefault));
-            Field.AddReceptor(noize);
-
-            Field.Confirm();
+            CoreObject.Field.Confirm();
         }
     }
 }

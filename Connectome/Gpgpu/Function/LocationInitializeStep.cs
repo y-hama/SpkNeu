@@ -36,7 +36,7 @@ namespace Connectome.Gpgpu.Function
                 for (int i = 0; i < count; i++)
                 {
                     if (i0 == i) { continue; }
-                    if (FunctionCore.Distance(x, y, z, px[i0], px[i0], px[i0]) < axon)
+                    if (FunctionCore.Distance(x, y, z, px[i], py[i], pz[i]) < axon)
                     {
                         phasRef[i0] = 1;
                         break;
