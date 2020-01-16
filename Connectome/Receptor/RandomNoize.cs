@@ -21,7 +21,11 @@ namespace Connectome.Receptor
 
         public override Real GetSignel(int idx)
         {
-            return 0.5 * random.NextDouble();
+            return Contingency * random.NextDouble();
+        }
+
+        public override void StepEnd()
+        {
         }
     }
 }

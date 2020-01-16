@@ -14,7 +14,7 @@ namespace Connectome
 
         public new string ToString()
         {
-            return string.Format("X:{0}, Y:{1}, Z:{2}, D:{3}", X, Y, Z, DistanceTo(new Location()));
+            return string.Format("X:{0}, Y:{1}, Z:{2}", X, Y, Z);
         }
 
         public void Copy(Location location)

@@ -15,16 +15,19 @@ namespace Connectome
         public double Value { get; set; }
         public CellCore.IgnitionState State { get; set; }
 
+        public double Energy { get; private set; }
+
         public new string ToString()
         {
             return string.Format("st:{0}, v:{1}, {2}, {3}", State, Value, SourceLocation.ToString(), ConvertedLocation.ToString());
         }
 
-        public CellState(Location location, double value, CellCore.IgnitionState state)
+        public CellState(Location location, double value, double energy, CellCore.IgnitionState state)
         {
             SourceLocation = location;
             Value = value;
             State = state;
+            Energy = energy;
         }
 
         public void Convert()

@@ -30,6 +30,10 @@ namespace Connectome.Gpgpu.GpuSource.Method
             AddParameter("resState", ObjectType.Array, ElementType.FLOAT);
 
             AddParameter("cellCount", ObjectType.Value, ElementType.INT);
+            AddParameter("energy", ObjectType.Value, ElementType.FLOAT);
+            AddParameter("denergy", ObjectType.Value, ElementType.FLOAT);
+            AddParameter("mp", ObjectType.Value, ElementType.FLOAT);
+            AddParameter("actrho", ObjectType.Value, ElementType.FLOAT);
         }
 
         protected override void CreateSource()
@@ -40,30 +44,39 @@ namespace Connectome.Gpgpu.GpuSource.Method
                 if (axsonCount != 0)
                 {
                     int pos = StartPosition(i0, axsonConnectCount);
-                    float cvl = 0, f = 0;
-                    float min = 100, max = 0, delta;
+                    float cvl = 0.0f, f = 0.0f, w = 0.0f;
+                    float min = 100.0f, max = 0.0f, delta;
+                    float wmin = 100.0f, wmax = 0.0f, wdelta;
                     for (int i = 0; i < axsonCount; i++)
                     {
                         int cellIndex = (int)axsonConnectMatrix[pos + i];
                         f = cellValue[cellIndex];
-                        if (f >= 0 && cellState[cellIndex] == 1)
+                        w = connectWeight[pos + i];
+                        if (f >= 0.0f && cellState[cellIndex] == 1)
                         {
-                            cvl += f * connectWeight[pos + i];
+                            cvl += f * w;
                             float act = cellActivity[cellIndex];
                             if (min > act) { min = act; }
                             if (max < act) { max = act; }
                         }
+                        if (wmin > w) { wmin = w; }
+                        if (wmax < w) { wmax = w; }
                     }
                     delta = max - min;
+                    wdelta = wmax - wmin;
                     if (delta > 0)
                     {
+                        wdelta = wdelta == 0.0f ? 1 : wdelta;
                         for (int i = 0; i < axsonCount; i++)
                         {
                             int cellIndex = (int)axsonConnectMatrix[pos + i];
                             f = cellValue[cellIndex];
-                            if (f >= 0 && cellState[cellIndex] == 1)
+                            if (f >= 0.0f && cellState[cellIndex] == 1)
                             {
-                                connectWeight[pos + i] += 0.01 * (cellActivity[cellIndex] - min) / delta;
+                                float wr, ar;
+                                wr = (float)(mp * ((connectWeight[pos + i] - wmin) / (wdelta)) + (1 - mp));
+                                ar = (float)(mp * ((cellActivity[cellIndex] - min) / delta) + (1 - mp));
+                                connectWeight[pos + i] += wr * ar;
                             }
                         }
                         WeightNormalize(i0, connectWeight, axsonConnectCount);
@@ -71,29 +84,22 @@ namespace Connectome.Gpgpu.GpuSource.Method
 
                     if ((int)cellState[i0] == 0)
                     {
-                        cellEnergy[i0] += cvl * 0.75;
-                        resValue[i0] = (cellValue[i0] + cvl * 0.75);
-                        if (resValue[i0] > 0.25 && cellEnergy[i0] > 1)
+                        resValue[i0] = (cellValue[i0] + cvl * 0.5f);
+                        if ((resValue[i0] > 0.25f) && (cellEnergy[i0] >= 1.0f))
                         {
-                            resState[i0] = 1;
-                            cellEnergy[i0] = 0;
+                            resState[i0] = 1.0f;
+                            cellEnergy[i0] -= 1.0f;
                         }
                         else
                         {
-                            if (cellEnergy[i0] > 1)
-                            {
-                                resValue[i0] *= 0.25;
-                            }
-                            else
-                            {
-                                resValue[i0] *= 0.5;
-                            }
+                            cellEnergy[i0] += denergy;
+                            resValue[i0] *= 0.5f;
                         }
                     }
                     else if ((int)cellState[i0] == 1)
                     {
-                        resValue[i0] = cellValue[i0] * 1.25;
-                        if (resValue[i0] > 1)
+                        resValue[i0] = cellValue[i0] * 1.25f;
+                        if (resValue[i0] > 1.0f)
                         {
                             resValue[i0] = 1;
                             resState[i0] = 2;
@@ -101,25 +107,23 @@ namespace Connectome.Gpgpu.GpuSource.Method
                     }
                     else if ((int)cellState[i0] == 2)
                     {
-                        resValue[i0] = cellValue[i0] * 0.75 - 0.1;
-                        if (resValue[i0] < -0.25)
+                        resValue[i0] = cellValue[i0] * 0.75 - 0.1f;
+                        if (resValue[i0] < -0.25f)
                         {
                             resState[i0] = 3;
                         }
                     }
                     else if ((int)cellState[i0] == 3)
                     {
-                        cellEnergy[i0] += cvl * 0.001;
-                        resValue[i0] = cellValue[i0] * 0.5 + 0.01;
-                        if (resValue[i0] > 0)
+                        resValue[i0] = cellValue[i0] * 0.75f + (0.0001f);
+                        if (resValue[i0] > 0.0f)
                         {
                             resState[i0] = 0;
                         }
                     }
-                    cellEnergy[i0] *= 0.95;
-                    float tmpval = resValue[i0] > 0.5 ? 1 : 0;
-                    float actrho = 0.75f;
-                    resActivity[i0] = actrho * cellActivity[i0] + (1 - actrho) * tmpval;
+                    cellEnergy[i0] *= 0.999f;
+                    float tmpval = resValue[i0] > 0.5f ? 1.0f : 0.0f;
+                    resActivity[i0] = actrho * cellActivity[i0] + (1.0f - actrho) * tmpval;
                 }
 ");
         }

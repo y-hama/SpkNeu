@@ -37,6 +37,28 @@ namespace Connectome
             set { CoreObject.Interval = value; }
         }
 
+        public static bool PulseON
+        {
+            get { return CoreObject.PulseON; }
+            set { CoreObject.PulseON = value; }
+        }
+
+        public static void GiveContingency()
+        {
+            CoreObject.GiveContingency(CoreObject.NeuronCount);
+        }
+
+        public static void SetReceptorContingency(int idx, double contingency)
+        {
+            CoreObject.SetReceptorContingency(idx, contingency);
+        }
+
+
+        public static event SignalUpdateEventHandler SignalUpdate
+        {
+            add { CoreObject.Field.SignalUpdateEvent += value; }
+            remove { CoreObject.Field.SignalUpdateEvent -= value; }
+        }
 
         public static void Initialize()
         {
@@ -49,6 +71,10 @@ namespace Connectome
             foreach (var item in CoreObject.Receptor)
             {
                 CoreObject.Field.AddReceptor(item);
+            }
+            foreach (var item in CoreObject.Signal)
+            {
+                CoreObject.Field.SetSignalLocation(item, CoreObject.AxsonLengthDefault);
             }
 
             CoreObject.Field.Confirm();

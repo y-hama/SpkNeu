@@ -47,6 +47,7 @@
     <Compile Include="CellState.cs" />
     <Compile Include="Core.cs" />
     <Compile Include="CoreObject.cs" />
+    <Compile Include="FieldState.cs" />
     <Compile Include="Gpgpu\FunctionCore.cs" />
     <Compile Include="Gpgpu\Function\FieldUpdateStep.cs" />
     <Compile Include="Gpgpu\Function\LocationInitializeStep.cs" />
@@ -62,6 +63,9 @@
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Receptor\Cell.cs" />
     <Compile Include="Field.cs" />
+    <Compile Include="Receptor\NegativeContingency.cs" />
+    <Compile Include="Receptor\PositiveContingency.cs" />
+    <Compile Include="Receptor\Pulsar.cs" />
     <Compile Include="Receptor\RandomNoize.cs" />
     <Compile Include="Receptor\Receptor.cs" />
   </ItemGroup>

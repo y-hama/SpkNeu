@@ -48,7 +48,7 @@ namespace Connectome
             for (int i = 0; i < cells.Count; i++)
             {
                 var item = cells[i];
-                if (item.ConvertedLocation.Z > 0 && item.ConvertedLocation.Z < viewparticledistance)
+                if (item.ConvertedLocation.Z > 0)
                 {
                     double signal = -1;
                     Color fc = Color.Black;

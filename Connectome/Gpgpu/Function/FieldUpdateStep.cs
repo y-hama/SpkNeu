@@ -4,11 +4,15 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Components.GPGPU;
+using Components;
 
 namespace Connectome.Gpgpu.Function
 {
     class FieldUpdateStep : Components.GPGPU.Function.FunctionBase
     {
+        private double MP_Param { get; set; } = 0.8;
+        private double ActRho_Param { get; set; } = 0.75;
+
         protected override void CreateGpuSource()
         {
             AddSource(new GpuSource.Method.FieldUpdateStep_Source());
@@ -28,6 +32,10 @@ namespace Connectome.Gpgpu.Function
             var resState = variable.Parameter[9].Instance.Array.Data;
 
             int cellCount = (int)variable["CellCount"].Value;
+            float energy = (float)variable["Energy"].Value;
+            float denergy = (float)variable["dEnergy"].Value;
+            float mp = (float)MP_Param;
+            float actrho = (float)ActRho_Param;
 
             for (int i0 = 0; i0 < cellCount; i0++)
             {
@@ -35,30 +43,39 @@ namespace Connectome.Gpgpu.Function
                 if (axsonCount != 0)
                 {
                     int pos = FunctionCore.StartPosition(i0, axsonConnectCount);
-                    float cvl = 0, f = 0;
-                    float min = 100, max = 0, delta;
+                    float cvl = 0.0f, f = 0.0f, w = 0.0f;
+                    float min = 100.0f, max = 0.0f, delta;
+                    float wmin = 100.0f, wmax = 0.0f, wdelta;
                     for (int i = 0; i < axsonCount; i++)
                     {
                         int cellIndex = (int)axsonConnectMatrix[pos + i];
                         f = cellValue[cellIndex];
-                        if (f >= 0 && cellState[cellIndex] == 1)
+                        w = connectWeight[pos + i];
+                        if (f >= 0.0f && cellState[cellIndex] == 1)
                         {
-                            cvl += f * connectWeight[pos + i];
+                            cvl += f * w;
                             float act = cellActivity[cellIndex];
                             if (min > act) { min = act; }
                             if (max < act) { max = act; }
                         }
+                        if (wmin > w) { wmin = w; }
+                        if (wmax < w) { wmax = w; }
                     }
                     delta = max - min;
+                    wdelta = wmax - wmin;
                     if (delta > 0)
                     {
+                        wdelta = wdelta == 0.0f ? 1 : wdelta;
                         for (int i = 0; i < axsonCount; i++)
                         {
                             int cellIndex = (int)axsonConnectMatrix[pos + i];
                             f = cellValue[cellIndex];
-                            if (f >= 0 && cellState[cellIndex] == 1)
+                            if (f >= 0.0f && cellState[cellIndex] == 1)
                             {
-                                connectWeight[pos + i] += 0.01 * (cellActivity[cellIndex] - min) / delta;
+                                float wr, ar;
+                                wr = (float)(mp * ((connectWeight[pos + i] - wmin) / (wdelta)) + (1 - mp));
+                                ar = (float)(mp * ((cellActivity[cellIndex] - min) / delta) + (1 - mp));
+                                connectWeight[pos + i] += wr * ar;
                             }
                         }
                         FunctionCore.WeightNormalize(i0, connectWeight, axsonConnectCount);
@@ -66,29 +83,23 @@ namespace Connectome.Gpgpu.Function
 
                     if ((int)cellState[i0] == 0)
                     {
-                        cellEnergy[i0] += cvl * 0.75;
-                        resValue[i0] = (cellValue[i0] + cvl * 0.75);
-                        if (resValue[i0] > 0.25 && cellEnergy[i0] > 1)
+                        resValue[i0] = (cellValue[i0] + cvl * 0.5f);
+                        if ((resValue[i0] > 0.25f) || (resValue[i0] > 0.1f && cellEnergy[i0] >= 1.0f))
                         {
-                            resState[i0] = 1;
-                            cellEnergy[i0] = 0;
+                            resState[i0] = 1.0f;
+                            cellEnergy[i0] -= 1.0f;
+                            cellEnergy[i0] = cellEnergy[i0] > 0 ? cellEnergy[i0] : 0;
                         }
                         else
                         {
-                            if (cellEnergy[i0] > 1)
-                            {
-                                resValue[i0] *= 0.25;
-                            }
-                            else
-                            {
-                                resValue[i0] *= 0.5;
-                            }
+                            cellEnergy[i0] += denergy;
+                            resValue[i0] *= 0.5f;
                         }
                     }
                     else if ((int)cellState[i0] == 1)
                     {
-                        resValue[i0] = cellValue[i0] * 1.25;
-                        if (resValue[i0] > 1)
+                        resValue[i0] = cellValue[i0] * 1.25f;
+                        if (resValue[i0] > 1.0f)
                         {
                             resValue[i0] = 1;
                             resState[i0] = 2;
@@ -96,25 +107,23 @@ namespace Connectome.Gpgpu.Function
                     }
                     else if ((int)cellState[i0] == 2)
                     {
-                        resValue[i0] = cellValue[i0] * 0.75 - 0.1;
-                        if (resValue[i0] < -0.25)
+                        resValue[i0] = cellValue[i0] * 0.75 - 0.1f;
+                        if (resValue[i0] < -0.25f)
                         {
                             resState[i0] = 3;
                         }
                     }
                     else if ((int)cellState[i0] == 3)
                     {
-                        cellEnergy[i0] += cvl * 0.001;
-                        resValue[i0] = cellValue[i0] * 0.5 + 0.01;
-                        if (resValue[i0] > 0)
+                        resValue[i0] = cellValue[i0] * 0.75f + (0.0001f);
+                        if (resValue[i0] > 0.0f)
                         {
                             resState[i0] = 0;
                         }
                     }
-                    cellEnergy[i0] *= 0.95;
-                    float tmpval = resValue[i0] > 0.5 ? 1 : 0;
-                    float actrho = 0.75f;
-                    resActivity[i0] = actrho * cellActivity[i0] + (1 - actrho) * tmpval;
+                    cellEnergy[i0] *= 0.99f;
+                    float tmpval = resValue[i0] > 0.5f ? 1.0f : 0.0f;
+                    resActivity[i0] = actrho * cellActivity[i0] + (1.0f - actrho) * tmpval;
                 }
             }
         }
@@ -133,6 +142,10 @@ namespace Connectome.Gpgpu.Function
             var resState = variable.Parameter[9].Instance.Array.Data;
 
             int cellCount = (int)variable["CellCount"].Value;
+            float energy = (float)variable["Energy"].Value;
+            float d_energy = (float)variable["dEnergy"].Value;
+            float mp = (float)MP_Param;
+            float actrho = (float)ActRho_Param;
 
             using (ComputeBufferSet _cellValue = ConvertBuffer(variable[0].Instance))
             using (ComputeBufferSet _cellActivity = ConvertBuffer(variable[1].Instance))
@@ -156,6 +169,10 @@ namespace Connectome.Gpgpu.Function
                 SetParameter(_resActivity);
                 SetParameter(_resState);
                 SetParameter(cellCount, ValueMode.INT);
+                SetParameter(energy, ValueMode.FLOAT);
+                SetParameter(d_energy, ValueMode.FLOAT);
+                SetParameter(mp, ValueMode.FLOAT);
+                SetParameter(actrho, ValueMode.FLOAT);
                 Execute(cellCount);
                 ReadBuffer(_cellEnergy, ref cellEnergy);
                 ReadBuffer(_connectWeight, ref connectWeight);
