@@ -10,6 +10,12 @@ namespace Components.GPGPU.Function
     public class ComputeParameter
     {
 
+        public Real this[int idx]
+        {
+            get { return Array.Data[idx]; }
+            set { Array.Data[idx] = value; }
+        }
+
         public string Name { get; set; }
         public RNdObject Array { get; set; }
         public int Length { get { return Array.Length; } }

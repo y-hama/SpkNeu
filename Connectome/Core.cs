@@ -45,7 +45,7 @@ namespace Connectome
 
         public static void GiveContingency()
         {
-            CoreObject.GiveContingency(CoreObject.NeuronCount);
+            CoreObject.GiveContingency(CoreObject.Field.Energy);
         }
 
         public static void SetReceptorContingency(int idx, double contingency)
@@ -68,6 +68,7 @@ namespace Connectome
             Components.State.Initialize();
 
             CoreObject.Field = new Connectome.Field(new Calculation.InitializeNeuron(CoreObject.NeuronCount, CoreObject.FieldArea, CoreObject.AxsonLengthDefault));
+            CoreObject.CreateReceptor();
             foreach (var item in CoreObject.Receptor)
             {
                 CoreObject.Field.AddReceptor(item);

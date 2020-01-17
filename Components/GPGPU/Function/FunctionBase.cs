@@ -96,9 +96,11 @@ namespace Components.GPGPU.Function
         #region Abstruct/Vitrual
         protected abstract void CreateGpuSource();
 
-        protected delegate void Function(ComputeVariable variable);
-        protected abstract void CpuFunction(ComputeVariable variable);
-        protected abstract void GpuFunction(ComputeVariable variable);
+        protected abstract void ConvertVariable(ComputeVariable variable);
+
+        protected delegate void Function();
+        protected abstract void CpuFunction();
+        protected abstract void GpuFunction();
 
         protected virtual void UpdateWithCondition(bool ForceUpdate, ComputeVariable variable) { }
         #endregion
@@ -229,7 +231,8 @@ namespace Components.GPGPU.Function
             try
             {
                 _cParam = variable.Parameter;
-                ProcessFunction(variable);
+                ConvertVariable(variable);
+                ProcessFunction();
                 UpdateWithCondition(ForceUpdate, variable);
 
                 ClearGpuParameter();

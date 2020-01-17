@@ -4,181 +4,126 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Components.GPGPU;
+using Components.GPGPU.Function;
 using Components;
 
 namespace Connectome.Gpgpu.Function
 {
-    class FieldUpdateStep : Components.GPGPU.Function.FunctionBase
+    class FieldUpdateStep : FunctionBase
     {
-        private double MP_Param { get; set; } = 0.8;
-        private double ActRho_Param { get; set; } = 0.75;
-
         protected override void CreateGpuSource()
         {
             AddSource(new GpuSource.Method.FieldUpdateStep_Source());
         }
 
-        protected override void CpuFunction(ComputeVariable variable)
+        private double MP_Param { get; set; } = 0.9;
+        private double ActRho_Param { get; set; } = 0.75;
+
+        private ComputeParameter cellValue;
+        private ComputeParameter cellSignal;
+        private ComputeParameter cellActivity;
+        private ComputeParameter cellState;
+        private ComputeParameter connectWeight;
+        private ComputeParameter cellEnergy;
+        private ComputeParameter axsonConnectCount;
+        private ComputeParameter axsonConnectStartIndex;
+        private ComputeParameter axsonConnectMatrix;
+        private ComputeParameter resValue;
+        private ComputeParameter resSignal;
+        private ComputeParameter resActivity;
+        private ComputeParameter resState;
+        private int cellCount;
+        private float energy;
+        private float denergy;
+        private float mp;
+        private float actrho;
+
+        private static Random random = new Random();
+
+        protected override void ConvertVariable(ComputeVariable variable)
         {
-            var cellValue = variable.Parameter[0].Instance.Array.Data;
-            var cellActivity = variable.Parameter[1].Instance.Array.Data;
-            var cellState = variable.Parameter[2].Instance.Array.Data;
-            var connectWeight = variable.Parameter[3].Instance.Array.Data;
-            var cellEnergy = variable.Parameter[4].Instance.Array.Data;
-            var axsonConnectCount = variable.Parameter[5].Instance.Array.Data;
-            var axsonConnectMatrix = variable.Parameter[6].Instance.Array.Data;
-            var resValue = variable.Parameter[7].Instance.Array.Data;
-            var resActivity = variable.Parameter[8].Instance.Array.Data;
-            var resState = variable.Parameter[9].Instance.Array.Data;
+            cellValue = variable.Parameter[0].Instance;
+            cellSignal = variable.Parameter[1].Instance;
+            cellActivity = variable.Parameter[2].Instance;
+            cellState = variable.Parameter[3].Instance;
+            connectWeight = variable.Parameter[4].Instance;
+            cellEnergy = variable.Parameter[5].Instance;
+            axsonConnectCount = variable.Parameter[6].Instance;
+            axsonConnectStartIndex = variable.Parameter[7].Instance;
+            axsonConnectMatrix = variable.Parameter[8].Instance;
+            resValue = variable.Parameter[9].Instance;
+            resSignal = variable.Parameter[10].Instance;
+            resActivity = variable.Parameter[11].Instance;
+            resState = variable.Parameter[12].Instance;
 
-            int cellCount = (int)variable["CellCount"].Value;
-            float energy = (float)variable["Energy"].Value;
-            float denergy = (float)variable["dEnergy"].Value;
-            float mp = (float)MP_Param;
-            float actrho = (float)ActRho_Param;
+            cellCount = (int)variable["CellCount"].Value;
+            energy = (float)variable["Energy"].Value;
+            denergy = (float)variable["dEnergy"].Value;
+            mp = (float)MP_Param;
+            actrho = (float)ActRho_Param;
+        }
 
+        protected override void CpuFunction()
+        {
             for (int i0 = 0; i0 < cellCount; i0++)
             {
                 int axsonCount = (int)axsonConnectCount[i0];
                 if (axsonCount != 0)
                 {
-                    int pos = FunctionCore.StartPosition(i0, axsonConnectCount);
-                    float cvl = 0.0f, f = 0.0f, w = 0.0f;
-                    float min = 100.0f, max = 0.0f, delta;
-                    float wmin = 100.0f, wmax = 0.0f, wdelta;
+                    int pos = (int)axsonConnectStartIndex[i0];
                     for (int i = 0; i < axsonCount; i++)
                     {
-                        int cellIndex = (int)axsonConnectMatrix[pos + i];
-                        f = cellValue[cellIndex];
-                        w = connectWeight[pos + i];
-                        if (f >= 0.0f && cellState[cellIndex] == 1)
-                        {
-                            cvl += f * w;
-                            float act = cellActivity[cellIndex];
-                            if (min > act) { min = act; }
-                            if (max < act) { max = act; }
-                        }
-                        if (wmin > w) { wmin = w; }
-                        if (wmax < w) { wmax = w; }
+                        int id = (int)axsonConnectMatrix[pos + i];
+                        float w = connectWeight[pos + i];
+                        float tcelv = cellValue[id];
+                        resValue[i0] += w * tcelv / 2;
                     }
-                    delta = max - min;
-                    wdelta = wmax - wmin;
-                    if (delta > 0)
-                    {
-                        wdelta = wdelta == 0.0f ? 1 : wdelta;
-                        for (int i = 0; i < axsonCount; i++)
-                        {
-                            int cellIndex = (int)axsonConnectMatrix[pos + i];
-                            f = cellValue[cellIndex];
-                            if (f >= 0.0f && cellState[cellIndex] == 1)
-                            {
-                                float wr, ar;
-                                wr = (float)(mp * ((connectWeight[pos + i] - wmin) / (wdelta)) + (1 - mp));
-                                ar = (float)(mp * ((cellActivity[cellIndex] - min) / delta) + (1 - mp));
-                                connectWeight[pos + i] += wr * ar;
-                            }
-                        }
-                        FunctionCore.WeightNormalize(i0, connectWeight, axsonConnectCount);
-                    }
-
-                    if ((int)cellState[i0] == 0)
-                    {
-                        resValue[i0] = (cellValue[i0] + cvl * 0.5f);
-                        if ((resValue[i0] > 0.25f) || (resValue[i0] > 0.1f && cellEnergy[i0] >= 1.0f))
-                        {
-                            resState[i0] = 1.0f;
-                            cellEnergy[i0] -= 1.0f;
-                            cellEnergy[i0] = cellEnergy[i0] > 0 ? cellEnergy[i0] : 0;
-                        }
-                        else
-                        {
-                            cellEnergy[i0] += denergy;
-                            resValue[i0] *= 0.5f;
-                        }
-                    }
-                    else if ((int)cellState[i0] == 1)
-                    {
-                        resValue[i0] = cellValue[i0] * 1.25f;
-                        if (resValue[i0] > 1.0f)
-                        {
-                            resValue[i0] = 1;
-                            resState[i0] = 2;
-                        }
-                    }
-                    else if ((int)cellState[i0] == 2)
-                    {
-                        resValue[i0] = cellValue[i0] * 0.75 - 0.1f;
-                        if (resValue[i0] < -0.25f)
-                        {
-                            resState[i0] = 3;
-                        }
-                    }
-                    else if ((int)cellState[i0] == 3)
-                    {
-                        resValue[i0] = cellValue[i0] * 0.75f + (0.0001f);
-                        if (resValue[i0] > 0.0f)
-                        {
-                            resState[i0] = 0;
-                        }
-                    }
-                    cellEnergy[i0] *= 0.99f;
-                    float tmpval = resValue[i0] > 0.5f ? 1.0f : 0.0f;
-                    resActivity[i0] = actrho * cellActivity[i0] + (1.0f - actrho) * tmpval;
+                    if (resValue[i0] > 1) { resValue[i0] = 0; }
                 }
             }
         }
 
-        protected override void GpuFunction(ComputeVariable variable)
+        protected override void GpuFunction()
         {
-            var cellValue = variable.Parameter[0].Instance.Array.Data;
-            var cellActivity = variable.Parameter[1].Instance.Array.Data;
-            var cellState = variable.Parameter[2].Instance.Array.Data;
-            var connectWeight = variable.Parameter[3].Instance.Array.Data;
-            var cellEnergy = variable.Parameter[4].Instance.Array.Data;
-            var axsonConnectCount = variable.Parameter[5].Instance.Array.Data;
-            var axsonConnectMatrix = variable.Parameter[6].Instance.Array.Data;
-            var resValue = variable.Parameter[7].Instance.Array.Data;
-            var resActivity = variable.Parameter[8].Instance.Array.Data;
-            var resState = variable.Parameter[9].Instance.Array.Data;
-
-            int cellCount = (int)variable["CellCount"].Value;
-            float energy = (float)variable["Energy"].Value;
-            float d_energy = (float)variable["dEnergy"].Value;
-            float mp = (float)MP_Param;
-            float actrho = (float)ActRho_Param;
-
-            using (ComputeBufferSet _cellValue = ConvertBuffer(variable[0].Instance))
-            using (ComputeBufferSet _cellActivity = ConvertBuffer(variable[1].Instance))
-            using (ComputeBufferSet _cellState = ConvertBuffer(variable[2].Instance))
-            using (ComputeBufferSet _connectWeight = ConvertBuffer(variable[3].Instance))
-            using (ComputeBufferSet _cellEnergy = ConvertBuffer(variable[4].Instance))
-            using (ComputeBufferSet _axsonConnectCount = ConvertBuffer(variable[5].Instance))
-            using (ComputeBufferSet _axsonConnectMatrix = ConvertBuffer(variable[6].Instance))
-            using (ComputeBufferSet _resValue = ConvertBuffer(variable[7].Instance))
-            using (ComputeBufferSet _resActivity = ConvertBuffer(variable[8].Instance))
-            using (ComputeBufferSet _resState = ConvertBuffer(variable[9].Instance))
+            using (ComputeBufferSet _cellValue = ConvertBuffer(cellValue))
+            using (ComputeBufferSet _cellSignal = ConvertBuffer(cellSignal))
+            using (ComputeBufferSet _cellActivity = ConvertBuffer(cellActivity))
+            using (ComputeBufferSet _cellState = ConvertBuffer(cellState))
+            using (ComputeBufferSet _connectWeight = ConvertBuffer(connectWeight))
+            using (ComputeBufferSet _cellEnergy = ConvertBuffer(cellEnergy))
+            using (ComputeBufferSet _axsonConnectCount = ConvertBuffer(axsonConnectCount))
+            using (ComputeBufferSet _axsonConnectStartIndex = ConvertBuffer(axsonConnectStartIndex))
+            using (ComputeBufferSet _axsonConnectMatrix = ConvertBuffer(axsonConnectMatrix))
+            using (ComputeBufferSet _resValue = ConvertBuffer(resValue))
+            using (ComputeBufferSet _resSignal = ConvertBuffer(resSignal))
+            using (ComputeBufferSet _resActivity = ConvertBuffer(resActivity))
+            using (ComputeBufferSet _resState = ConvertBuffer(resState))
             {
                 SetParameter(_cellValue);
+                SetParameter(_cellSignal);
                 SetParameter(_cellActivity);
                 SetParameter(_cellState);
                 SetParameter(_connectWeight);
                 SetParameter(_cellEnergy);
                 SetParameter(_axsonConnectCount);
+                SetParameter(_axsonConnectStartIndex);
                 SetParameter(_axsonConnectMatrix);
                 SetParameter(_resValue);
+                SetParameter(_resSignal);
                 SetParameter(_resActivity);
                 SetParameter(_resState);
                 SetParameter(cellCount, ValueMode.INT);
                 SetParameter(energy, ValueMode.FLOAT);
-                SetParameter(d_energy, ValueMode.FLOAT);
+                SetParameter(denergy, ValueMode.FLOAT);
                 SetParameter(mp, ValueMode.FLOAT);
                 SetParameter(actrho, ValueMode.FLOAT);
                 Execute(cellCount);
-                ReadBuffer(_cellEnergy, ref cellEnergy);
-                ReadBuffer(_connectWeight, ref connectWeight);
-                ReadBuffer(_resValue, ref resValue);
-                ReadBuffer(_resActivity, ref resActivity);
-                ReadBuffer(_resState, ref resState);
+                ReadBuffer(_cellEnergy, ref cellEnergy.Array.Data);
+                ReadBuffer(_connectWeight, ref connectWeight.Array.Data);
+                ReadBuffer(_resValue, ref resValue.Array.Data);
+                ReadBuffer(_resSignal, ref resSignal.Array.Data);
+                ReadBuffer(_resActivity, ref resActivity.Array.Data);
+                ReadBuffer(_resState, ref resState.Array.Data);
             }
         }
     }

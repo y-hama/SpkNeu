@@ -58,6 +58,7 @@ namespace Connectome.Calculation
                 variable.Add("paxson", axson, Components.State.MemoryModeSet.ReadOnly);
                 variable.Add("phasRef", hasRef, Components.State.MemoryModeSet.WriteOnly);
                 variable.Argument.Add(new Components.GPGPU.ComputeVariable.ValueSet("count") { Value = count });
+                variable.Argument.Add(new Components.GPGPU.ComputeVariable.ValueSet("connectcount") { Value = 2 });
                 function.Do(false, variable);
                 int containscount = hasRef.Data.Count(x => x.Value == 0);
                 if (containscount != 0)
@@ -67,8 +68,8 @@ namespace Connectome.Calculation
                     {
                         if (hasRef.Data[i] == 0)
                         {
-                            var loc = new Location(random, axson[i]) + list[random.Next(count)];
-                            //var loc = new Location(random, area);
+                            //var loc = new Location(random, axson[i]) + list[random.Next(count)];
+                            var loc = new Location(random, area);
                             list[i] = loc;
                             px[i] = loc.X;
                             py[i] = loc.Y;
@@ -87,21 +88,21 @@ namespace Connectome.Calculation
                 NeuronSources.Add(new NeuronSource(list[i], axson[i]));
             }
 
-            NeuronSources.Sort((l1, l2) =>
-            {
-                var def = new Location();
-                var dist1 = l1.Location.DistanceTo(def);
-                var dist2 = l2.Location.DistanceTo(def);
-                if (dist1 >= dist2)
-                {
-                    return 1;
-                }
-                else if (dist1 <= dist2)
-                {
-                    return -1;
-                }
-                else { return 0; }
-            });
+            //NeuronSources.Sort((l1, l2) =>
+            //{
+            //    var def = new Location();
+            //    var dist1 = l1.Location.DistanceTo(def);
+            //    var dist2 = l2.Location.DistanceTo(def);
+            //    if (dist1 >= dist2)
+            //    {
+            //        return 1;
+            //    }
+            //    else if (dist1 <= dist2)
+            //    {
+            //        return -1;
+            //    }
+            //    else { return 0; }
+            //});
         }
     }
 }

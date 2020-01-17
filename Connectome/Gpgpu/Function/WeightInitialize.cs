@@ -4,46 +4,54 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Components.GPGPU.Function;
 
 namespace Connectome.Gpgpu.Function
 {
-    class WeightInitialize : Components.GPGPU.Function.FunctionBase
+    class WeightInitialize : FunctionBase
     {
-
         protected override void CreateGpuSource()
         {
             AddSource(new GpuSource.Method.WeightInitialize_Source());
         }
 
-        protected override void CpuFunction(ComputeVariable variable)
+        private ComputeParameter connectWeight;
+        private ComputeParameter axsonConnectCount;
+        private ComputeParameter axsonConnectStartIndex;
+        private ComputeParameter axsonConnectMatrix;
+        private int cellCount;
+        private int neuronCount;
+
+        protected override void ConvertVariable(ComputeVariable variable)
         {
-            var connectWeight = variable.Parameter[0].Instance.Array.Data;
-            var axsonConnectCount = variable.Parameter[1].Instance.Array.Data;
-            var axsonConnectMatrix = variable.Parameter[2].Instance.Array.Data;
+            connectWeight = variable.Parameter[0].Instance;
+            axsonConnectCount = variable.Parameter[1].Instance;
+            axsonConnectStartIndex = variable.Parameter[2].Instance;
+            axsonConnectMatrix = variable.Parameter[3].Instance;
 
-            int cellCount = (int)variable["CellCount"].Value;
-            int neuronCount = (int)variable["NeuronCount"].Value;
+            cellCount = (int)variable["CellCount"].Value;
+            neuronCount = (int)variable["NeuronCount"].Value;
+        }
 
+        protected override void CpuFunction()
+        {
             for (int i0 = 0; i0 < cellCount; i0++)
             {
-                FunctionCore.WeightNormalize(i0, connectWeight, axsonConnectCount);
+                WeightNormalize(i0, connectWeight, axsonConnectCount, (int)axsonConnectStartIndex[i0]);
             }
         }
 
-        protected override void GpuFunction(ComputeVariable variable)
+        protected override void GpuFunction()
         {
-            var connectWeight = variable.Parameter[0].Instance.Array.Data;
-            var axsonConnectCount = variable.Parameter[1].Instance.Array.Data;
-
-            int cellCount = (int)variable["CellCount"].Value;
-
-            using (ComputeBufferSet _connectWeight = ConvertBuffer(variable[0].Instance))
-            using (ComputeBufferSet _axsonConnectCount = ConvertBuffer(variable[1].Instance))
+            using (ComputeBufferSet _connectWeight = ConvertBuffer(connectWeight))
+            using (ComputeBufferSet _axsonConnectCount = ConvertBuffer(axsonConnectCount))
+            using (ComputeBufferSet _axsonConnectStartIndex = ConvertBuffer(axsonConnectStartIndex))
             {
                 SetParameter(_connectWeight);
                 SetParameter(_axsonConnectCount);
+                SetParameter(_axsonConnectStartIndex);
                 Execute(cellCount);
-                ReadBuffer(_connectWeight, ref connectWeight);
+                ReadBuffer(_connectWeight, ref connectWeight.Array.Data);
             }
         }
     }

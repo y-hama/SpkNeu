@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Components.GPGPU.Function;
 using Components;
 
 namespace Connectome.Gpgpu.GpuSource.Shared
@@ -51,7 +52,7 @@ namespace Connectome.Gpgpu.GpuSource.Shared
 ");
         }
 
-        public static int StartPosition_cpu(int idx, Real[] connectionCount)
+        public static int StartPosition_cpu(int idx, ComputeParameter connectionCount)
         {
             int res = 0;
             for (int i = 0; i < idx; i++)

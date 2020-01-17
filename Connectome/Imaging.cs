@@ -43,7 +43,7 @@ namespace Connectome
             Bitmap bitmap = new Bitmap(size, size);
             Graphics g = Graphics.FromImage(bitmap);
             g.FillRectangle(Brushes.Black, new RectangleF(0, 0, size, size));
-            double sizeoder = Math.Max(15, size / 30);
+            double sizeoder = Math.Max(15, size / 30), sizemin = 0.75;
             double viewparticledistance = (view - camera).Norm;
             for (int i = 0; i < cells.Count; i++)
             {
@@ -59,27 +59,27 @@ namespace Connectome
                     double itemorder = (item.ConvertedLocation.Z - near) / (areasize);
                     double zodr = (1 - itemorder);
 
-                    float elemsize = (float)(sizeoder * zodr);
+                    float elemsize = (float)(sizeoder * ((1 - sizemin) * zodr + sizemin));
                     signal = (Math.Max(0, Math.Min(1, item.Value)));
                     byte sigv = (byte)(byte.MaxValue * signal);
 
-                    fc = Color.FromArgb((byte)(byte.MaxValue * (sigv * 0.5 + 0.5) / 2), sigv / 4, sigv / 2, sigv);
+                    fc = Color.FromArgb((byte)(byte.MaxValue * (sigv * 0.2 + 0.8) / 2), sigv / 4, sigv / 2, sigv);
                     rect = new RectangleF(x - elemsize / 2, y - elemsize / 2, elemsize, elemsize);
 
                     ec = Color.Gray;
                     switch (item.State)
                     {
                         case CellCore.IgnitionState.Stable:
-                            ec = Color.FromArgb(64, Color.DimGray);
+                            ec = Color.FromArgb(100, Color.DimGray);
                             break;
                         case CellCore.IgnitionState.Ignition:
                             ec = Color.FromArgb(byte.MaxValue, Color.Red);
                             break;
                         case CellCore.IgnitionState.Overshoot:
-                            ec = Color.FromArgb(64, Color.YellowGreen);
+                            ec = Color.FromArgb(128, Color.YellowGreen);
                             break;
                         case CellCore.IgnitionState.Cooling:
-                            ec = Color.FromArgb(64, Color.Cyan);
+                            ec = Color.FromArgb(96, Color.Cyan);
                             break;
                         default:
                             break;

@@ -26,6 +26,7 @@ namespace Connectome.Gpgpu.GpuSource.Method
             AddParameter("phasRef", ObjectType.Array, ElementType.FLOAT);
 
             AddParameter("count", ObjectType.Value, ElementType.INT);
+            AddParameter("connectcount", ObjectType.Value, ElementType.INT);
         }
 
         protected override void CreateSource()
@@ -38,14 +39,19 @@ namespace Connectome.Gpgpu.GpuSource.Method
                 float z = pz[i0];
                 float axon = paxson[i0];
 
+                int cnt = 0;
+
                 for (int i = 0; i < count; i++)
                 {
                     if (i0 == i) { continue; }
                     if (Distance(x, y, z, px[i], py[i], pz[i]) < axon)
                     {
-                        phasRef[i0] = 1;
-                        break;
+                        cnt++;
                     }
+                }
+                if(cnt > connectcount)
+                {
+                    phasRef[i0] = 1;
                 }
 ");
         }

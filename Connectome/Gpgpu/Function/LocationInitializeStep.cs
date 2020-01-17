@@ -5,26 +5,39 @@ using System.Text;
 using System.Threading.Tasks;
 using Components.GPGPU;
 using Components;
+using Components.GPGPU.Function;
 
 namespace Connectome.Gpgpu.Function
 {
-    class LocationInitializeStep : Components.GPGPU.Function.FunctionBase
+    class LocationInitializeStep : FunctionBase
     {
         protected override void CreateGpuSource()
         {
             AddSource(new GpuSource.Method.LocationInitializeStep_Source());
         }
 
-        protected override void CpuFunction(ComputeVariable variable)
+        private ComputeParameter px;
+        private ComputeParameter py;
+        private ComputeParameter pz;
+        private ComputeParameter paxson;
+        private ComputeParameter phasRef;
+        private int count;
+        private int connectcount;
+
+        protected override void ConvertVariable(ComputeVariable variable)
         {
-            var px = variable.Parameter[0].Instance.Array.Data;
-            var py = variable.Parameter[1].Instance.Array.Data;
-            var pz = variable.Parameter[2].Instance.Array.Data;
-            var paxson = variable.Parameter[3].Instance.Array.Data;
-            var phasRef = variable.Parameter[4].Instance.Array.Data;
+            px = variable.Parameter[0].Instance;
+            py = variable.Parameter[1].Instance;
+            pz = variable.Parameter[2].Instance;
+            paxson = variable.Parameter[3].Instance;
+            phasRef = variable.Parameter[4].Instance;
 
-            int count = (int)variable["count"].Value;
+            count = (int)variable["count"].Value;
+            connectcount = (int)variable["connectcount"].Value;
+        }
 
+        protected override void CpuFunction()
+        {
             for (int i0 = 0; i0 < count; i0++)
             {
                 phasRef[i0] = 0;
@@ -36,7 +49,7 @@ namespace Connectome.Gpgpu.Function
                 for (int i = 0; i < count; i++)
                 {
                     if (i0 == i) { continue; }
-                    if (FunctionCore.Distance(x, y, z, px[i], py[i], pz[i]) < axon)
+                    if (Distance(x, y, z, px[i], py[i], pz[i]) < axon)
                     {
                         phasRef[i0] = 1;
                         break;
@@ -45,21 +58,13 @@ namespace Connectome.Gpgpu.Function
             }
         }
 
-        protected override void GpuFunction(ComputeVariable variable)
+        protected override void GpuFunction()
         {
-            var px = variable.Parameter[0].Instance.Array.Data;
-            var py = variable.Parameter[1].Instance.Array.Data;
-            var pz = variable.Parameter[2].Instance.Array.Data;
-            var paxson = variable.Parameter[3].Instance.Array.Data;
-            var phasRef = variable.Parameter[4].Instance.Array.Data;
-
-            int count = (int)variable["count"].Value;
-
-            using (ComputeBufferSet _px = ConvertBuffer(variable[0].Instance))
-            using (ComputeBufferSet _py = ConvertBuffer(variable[1].Instance))
-            using (ComputeBufferSet _pz = ConvertBuffer(variable[2].Instance))
-            using (ComputeBufferSet _paxson = ConvertBuffer(variable[3].Instance))
-            using (ComputeBufferSet _phasRef = ConvertBuffer(variable[4].Instance))
+            using (ComputeBufferSet _px = ConvertBuffer(px))
+            using (ComputeBufferSet _py = ConvertBuffer(py))
+            using (ComputeBufferSet _pz = ConvertBuffer(pz))
+            using (ComputeBufferSet _paxson = ConvertBuffer(paxson))
+            using (ComputeBufferSet _phasRef = ConvertBuffer(phasRef))
             {
                 SetParameter(_px);
                 SetParameter(_py);
@@ -67,8 +72,9 @@ namespace Connectome.Gpgpu.Function
                 SetParameter(_paxson);
                 SetParameter(_phasRef);
                 SetParameter(count, ValueMode.INT);
+                SetParameter(connectcount, ValueMode.INT);
                 Execute(count);
-                ReadBuffer(_phasRef, ref phasRef);
+                ReadBuffer(_phasRef, ref phasRef.Array.Data);
             }
         }
     }

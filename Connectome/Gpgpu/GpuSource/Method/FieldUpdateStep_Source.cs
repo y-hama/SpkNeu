@@ -19,13 +19,16 @@ namespace Connectome.Gpgpu.GpuSource.Method
         protected override void ParameterConfigration()
         {
             AddParameter("cellValue", ObjectType.Array, ElementType.FLOAT);
+            AddParameter("cellSignal", ObjectType.Array, ElementType.FLOAT);
             AddParameter("cellActivity", ObjectType.Array, ElementType.FLOAT);
             AddParameter("cellState", ObjectType.Array, ElementType.FLOAT);
             AddParameter("connectWeight", ObjectType.Array, ElementType.FLOAT);
             AddParameter("cellEnergy", ObjectType.Array, ElementType.FLOAT);
             AddParameter("axsonConnectCount", ObjectType.Array, ElementType.FLOAT);
+            AddParameter("axsonConnectStartIndex", ObjectType.Array, ElementType.FLOAT);
             AddParameter("axsonConnectMatrix", ObjectType.Array, ElementType.FLOAT);
             AddParameter("resValue", ObjectType.Array, ElementType.FLOAT);
+            AddParameter("resSignal", ObjectType.Array, ElementType.FLOAT);
             AddParameter("resActivity", ObjectType.Array, ElementType.FLOAT);
             AddParameter("resState", ObjectType.Array, ElementType.FLOAT);
 
@@ -43,87 +46,73 @@ namespace Connectome.Gpgpu.GpuSource.Method
                 int axsonCount = (int)axsonConnectCount[i0];
                 if (axsonCount != 0)
                 {
-                    int pos = StartPosition(i0, axsonConnectCount);
-                    float cvl = 0.0f, f = 0.0f, w = 0.0f;
-                    float min = 100.0f, max = 0.0f, delta;
-                    float wmin = 100.0f, wmax = 0.0f, wdelta;
+                    int pos = (int)axsonConnectStartIndex[i0];
+                    float rv = 0;
+                    float act, actmin = 100, actmax = 0, dact = 0;
                     for (int i = 0; i < axsonCount; i++)
                     {
-                        int cellIndex = (int)axsonConnectMatrix[pos + i];
-                        f = cellValue[cellIndex];
-                        w = connectWeight[pos + i];
-                        if (f >= 0.0f && cellState[cellIndex] == 1)
-                        {
-                            cvl += f * w;
-                            float act = cellActivity[cellIndex];
-                            if (min > act) { min = act; }
-                            if (max < act) { max = act; }
-                        }
-                        if (wmin > w) { wmin = w; }
-                        if (wmax < w) { wmax = w; }
+                        int cellrefindex = (int)axsonConnectMatrix[pos + i];
+                        act = cellActivity[cellrefindex];
+                        rv += connectWeight[pos + i] * (cellSignal[cellrefindex]);
+                        if (actmin > act) { actmin = act; }
+                        if (actmax < act) { actmax = act; }
                     }
-                    delta = max - min;
-                    wdelta = wmax - wmin;
-                    if (delta > 0)
-                    {
-                        wdelta = wdelta == 0.0f ? 1 : wdelta;
-                        for (int i = 0; i < axsonCount; i++)
-                        {
-                            int cellIndex = (int)axsonConnectMatrix[pos + i];
-                            f = cellValue[cellIndex];
-                            if (f >= 0.0f && cellState[cellIndex] == 1)
-                            {
-                                float wr, ar;
-                                wr = (float)(mp * ((connectWeight[pos + i] - wmin) / (wdelta)) + (1 - mp));
-                                ar = (float)(mp * ((cellActivity[cellIndex] - min) / delta) + (1 - mp));
-                                connectWeight[pos + i] += wr * ar;
-                            }
-                        }
-                        WeightNormalize(i0, connectWeight, axsonConnectCount);
-                    }
+                    dact = actmax - actmin;
 
-                    if ((int)cellState[i0] == 0)
+                    if (cellState[i0] == 0)
                     {
-                        resValue[i0] = (cellValue[i0] + cvl * 0.5f);
-                        if ((resValue[i0] > 0.25f) && (cellEnergy[i0] >= 1.0f))
+                        resValue[i0] = StepNext(cellValue[i0], 0.5, rv);
+                        if (resValue[i0] > 0.5 && cellEnergy[i0] > 1)
                         {
-                            resState[i0] = 1.0f;
-                            cellEnergy[i0] -= 1.0f;
+                            cellEnergy[i0] = cellEnergy[i0] - 1;
+                            resState[i0] = 1;
                         }
                         else
                         {
                             cellEnergy[i0] += denergy;
-                            resValue[i0] *= 0.5f;
+                            if (dact > 0)
+                            {
+                                for (int i = 0; i < axsonCount; i++)
+                                {
+                                    int cellrefindex = (int)axsonConnectMatrix[pos + i];
+                                    connectWeight[pos + i] += 0.1 * (1 - cellActivity[i0]) * (cellActivity[cellrefindex] - actmin) / dact;
+                                }
+                                WeightNormalize(i0, connectWeight, axsonConnectCount, pos);
+                            }
                         }
                     }
-                    else if ((int)cellState[i0] == 1)
+                    else if (cellState[i0] == 1)
                     {
-                        resValue[i0] = cellValue[i0] * 1.25f;
-                        if (resValue[i0] > 1.0f)
+                        resValue[i0] = StepNext(cellValue[i0], 1.75, 0);
+                        if (resValue[i0] > 1)
                         {
-                            resValue[i0] = 1;
                             resState[i0] = 2;
                         }
                     }
-                    else if ((int)cellState[i0] == 2)
+                    else if (cellState[i0] == 2)
                     {
-                        resValue[i0] = cellValue[i0] * 0.75 - 0.1f;
-                        if (resValue[i0] < -0.25f)
+                        resValue[i0] = StepNext(cellValue[i0], 0.5, -0.5);
+                        if (resValue[i0] < -0.25)
                         {
                             resState[i0] = 3;
                         }
                     }
-                    else if ((int)cellState[i0] == 3)
+                    else if (cellState[i0] == 3)
                     {
-                        resValue[i0] = cellValue[i0] * 0.75f + (0.0001f);
-                        if (resValue[i0] > 0.0f)
+                        resValue[i0] = StepNext(cellValue[i0], 0.75, 0.1);
+                        if (resValue[i0] > 0)
                         {
                             resState[i0] = 0;
                         }
+                        else
+                        {
+                            cellEnergy[i0] += denergy;
+                        }
                     }
-                    cellEnergy[i0] *= 0.999f;
-                    float tmpval = resValue[i0] > 0.5f ? 1.0f : 0.0f;
-                    resActivity[i0] = actrho * cellActivity[i0] + (1.0f - actrho) * tmpval;
+                    resSignal[i0] = resValue[i0] > 0.5 ? 1 : 0;
+                    resActivity[i0] = cellActivity[i0] + (resSignal[i0] > 0 ? 0.1 : -0.1);
+                    if (resActivity[i0] < 0) { resActivity[i0] = 0; }
+                    if (resActivity[i0] > 1) { resActivity[i0] = 1; }
                 }
 ");
         }

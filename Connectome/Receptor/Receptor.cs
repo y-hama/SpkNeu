@@ -39,7 +39,8 @@ namespace Connectome.Receptor
                     StepStart();
                     for (int i = 0; i < Cells.Count; i++)
                     {
-                        Cells[i].Signal = GetSignel(i);
+                        Cells[i].Signal = Cells[i].Value= GetSignel(i);
+                        Cells[i].Activity = 1;
                     }
                     StepEnd();
                     System.Threading.Thread.Sleep(1 + CoreObject.Interval);

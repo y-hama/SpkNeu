@@ -13,6 +13,7 @@ namespace Connectome
         public Location ConvertedLocation { get; private set; } = new Location();
 
         public double Value { get; set; }
+        public double Signal { get; set; }
         public CellCore.IgnitionState State { get; set; }
 
         public double Energy { get; private set; }
@@ -22,10 +23,11 @@ namespace Connectome
             return string.Format("st:{0}, v:{1}, {2}, {3}", State, Value, SourceLocation.ToString(), ConvertedLocation.ToString());
         }
 
-        public CellState(Location location, double value, double energy, CellCore.IgnitionState state)
+        public CellState(Location location, double value, double signal, double energy, CellCore.IgnitionState state)
         {
             SourceLocation = location;
             Value = value;
+            Signal = signal;
             State = state;
             Energy = energy;
         }

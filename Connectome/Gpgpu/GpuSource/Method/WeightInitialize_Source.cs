@@ -20,13 +20,14 @@ namespace Connectome.Gpgpu.GpuSource.Method
         {
             AddParameter("connectWeight", ObjectType.Array, ElementType.FLOAT);
             AddParameter("axsonConnectCount", ObjectType.Array, ElementType.FLOAT);
+            AddParameter("axsonConnectStartIndex", ObjectType.Array, ElementType.FLOAT);
         }
 
         protected override void CreateSource()
         {
             GlobalID(1);
             AddMethodBody(@"
-WeightNormalize(i0, connectWeight, axsonConnectCount);
+WeightNormalize(i0, connectWeight, axsonConnectCount, axsonConnectStartIndex[i0]);
 ");
         }
     }

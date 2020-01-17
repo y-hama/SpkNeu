@@ -48,8 +48,8 @@
     <Compile Include="Core.cs" />
     <Compile Include="CoreObject.cs" />
     <Compile Include="FieldState.cs" />
-    <Compile Include="Gpgpu\FunctionCore.cs" />
     <Compile Include="Gpgpu\Function\FieldUpdateStep.cs" />
+    <Compile Include="Gpgpu\FunctionBase.cs" />
     <Compile Include="Gpgpu\Function\LocationInitializeStep.cs" />
     <Compile Include="Gpgpu\Function\WeightInitialize.cs" />
     <Compile Include="Gpgpu\GpuSource\Method\FieldUpdateStep_Source.cs" />
@@ -57,6 +57,7 @@
     <Compile Include="Gpgpu\GpuSource\Method\WeightInitialize_Source.cs" />
     <Compile Include="Gpgpu\GpuSource\Shared\Distance.cs" />
     <Compile Include="Gpgpu\GpuSource\Shared\StartPosition.cs" />
+    <Compile Include="Gpgpu\GpuSource\Shared\StepNext.cs" />
     <Compile Include="Gpgpu\GpuSource\Shared\WeightNormalize.cs" />
     <Compile Include="Imaging.cs" />
     <Compile Include="Location.cs" />

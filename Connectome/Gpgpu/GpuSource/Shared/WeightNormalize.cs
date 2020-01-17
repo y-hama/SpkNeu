@@ -39,6 +39,7 @@ namespace Connectome.Gpgpu.GpuSource.Shared
             AddParameter("idx", ObjectType.Value, ElementType.INT);
             AddParameter("connectWeight", ObjectType.Array, ElementType.FLOAT);
             AddParameter("axsonConnectCount", ObjectType.Array, ElementType.FLOAT);
+            AddParameter("pos", ObjectType.Value, ElementType.INT);
         }
 
         protected override void CreateSource()
@@ -47,11 +48,6 @@ namespace Connectome.Gpgpu.GpuSource.Shared
             int axsonCount = (int)axsonConnectCount[idx];
             if (axsonCount != 0)
             {
-                int pos = 0;
-                for (int i = 0; i < idx; i++)
-                {
-                    pos += (int)axsonConnectCount[i];
-                } 
                 float sum = 0;
                 for (int i = 0; i < axsonCount; i++)
                 {
@@ -68,12 +64,11 @@ namespace Connectome.Gpgpu.GpuSource.Shared
 ");
         }
 
-        public static void WeightNormalize_cpu(int idx, Real[] connectWeight, Real[] axsonConnectCount)
+        public static void WeightNormalize_cpu(int idx, ComputeParameter connectWeight, ComputeParameter axsonConnectCount, int pos)
         {
             int axsonCount = (int)axsonConnectCount[idx];
             if (axsonCount != 0)
             {
-                int pos = FunctionCore.StartPosition(idx, axsonConnectCount);
                 float sum = 0;
                 for (int i = 0; i < axsonCount; i++)
                 {

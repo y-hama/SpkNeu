@@ -32,8 +32,9 @@ namespace ConnectomeVisualizer
         public Form1()
         {
             InitializeComponent();
-            Connectome.Core.SetReceptorContingency(0, 0.5);
-            Connectome.Core.SetReceptorContingency(1, 0.5);
+            Connectome.Core.Interval = trackBar1.Value;
+            //Connectome.Core.SetReceptorContingency(0, 0.5);
+            //Connectome.Core.SetReceptorContingency(1, 0.5);
             Connectome.Core.SignalUpdate += Core_SignalUpdate;
         }
 
@@ -47,13 +48,12 @@ namespace ConnectomeVisualizer
 
         private void timer1_Tick(object sender, EventArgs e)
         {
-            Connectome.Location camera = new Connectome.Location(Cx, Cy, Cz);
-            Connectome.Location view = new Connectome.Location();
-
             DateTime start = DateTime.Now;
             double timespan = 0;
             if (checkBox2.Checked)
             {
+                Connectome.Location camera = new Connectome.Location(Cx, Cy, Cz);
+                Connectome.Location view = new Connectome.Location();
                 var image = Connectome.Imaging.ViewImage(Math.Min(pictureBox1.Width, pictureBox1.Height), camera, view);
 
                 Graphics g = Graphics.FromImage(image);
@@ -87,30 +87,39 @@ namespace ConnectomeVisualizer
             }
             if (checkBox1.Checked)
             {
-                var ccnt = FieldStateHistory.ToArray()[0].Signals.Count;
-                if (ccnt != chart1.Series.Count)
+                try
                 {
-                    chart1.Series.Clear();
-                    for (int i = 0; i < ccnt; i++)
+                    if (FieldStateHistory.Count > 0)
                     {
-                        System.Windows.Forms.DataVisualization.Charting.Series series
-                            = new System.Windows.Forms.DataVisualization.Charting.Series(FieldStateHistory.ToArray()[0].Locations[i].ToString());
-                        series.ChartType = System.Windows.Forms.DataVisualization.Charting.SeriesChartType.Line;
-                        chart1.Series.Add(series);
+                        var ccnt = FieldStateHistory.ToArray()[0].Signals.Count;
+                        if (ccnt != chart1.Series.Count)
+                        {
+                            chart1.Series.Clear();
+                            for (int i = 0; i < ccnt; i++)
+                            {
+                                System.Windows.Forms.DataVisualization.Charting.Series series
+                                    = new System.Windows.Forms.DataVisualization.Charting.Series(FieldStateHistory.ToArray()[0].Locations[i].ToString());
+                                series.ChartType = System.Windows.Forms.DataVisualization.Charting.SeriesChartType.Line;
+                                chart1.Series.Add(series);
+                            }
+                        }
+                        for (int i = 0; i < ccnt; i++)
+                        {
+                            chart1.Series[i].Points.Clear();
+                        }
+                        chart2.Series[0].Points.Clear();
+                        foreach (var item in FieldStateHistory)
+                        {
+                            for (int i = 0; i < item.Signals.Count; i++)
+                            {
+                                chart1.Series[i].Points.AddY(item.Signals[i]);
+                            }
+                            chart2.Series[0].Points.AddY(item.Energy);
+                        }
                     }
                 }
-                for (int i = 0; i < ccnt; i++)
+                catch (Exception)
                 {
-                    chart1.Series[i].Points.Clear();
-                }
-                chart2.Series[0].Points.Clear();
-                foreach (var item in FieldStateHistory)
-                {
-                    for (int i = 0; i < item.Signals.Count; i++)
-                    {
-                        chart1.Series[i].Points.AddY(item.Signals[i]);
-                    }
-                    chart2.Series[0].Points.AddY(item.Energy);
                 }
             }
 
@@ -180,8 +189,8 @@ namespace ConnectomeVisualizer
         private void trackBar5_Scroll(object sender, EventArgs e)
         {
             var x = (((double)trackBar5.Value - trackBar5.Maximum / 2) / (trackBar5.Maximum / 2)) / 2;
-            Connectome.Core.SetReceptorContingency(0, 0.5 - x);
-            Connectome.Core.SetReceptorContingency(1, 0.5 + x);
+            Connectome.Core.SetReceptorContingency(0, 0.5 - x + 0.1);
+            Connectome.Core.SetReceptorContingency(1, 0.5 + x + 0.1);
         }
     }
 }

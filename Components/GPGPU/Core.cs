@@ -121,10 +121,10 @@ namespace Components.GPGPU
                 {
                     asm = Assembly.GetExecutingAssembly();
                 }
+                var types = asm.GetTypes();
 
                 string sharedmethod = string.Empty;
                 #region SharedMethod
-                var types = asm.GetTypes();
                 foreach (var item in types)
                 {
                     if (SharedNameSpaceList.Contains(item.Namespace))

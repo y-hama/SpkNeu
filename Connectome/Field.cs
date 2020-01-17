@@ -16,7 +16,6 @@ namespace Connectome
         {
             public IgnitionState State { get; set; }
 
-            public double Activity { get; set; }
             public double Energy { get; set; }
 
             public double AxsonLength { get; private set; }
@@ -82,24 +81,27 @@ namespace Connectome
             }
         }
 
-        #region BufferCellEnergy
+        #region Buffer
         private RNdArray cellValue { get; set; }
+        private RNdArray cellSignal { get; set; }
         private RNdArray cellActivity { get; set; }
         private RNdArray cellEnergy { get; set; }
         private RNdArray cellState { get; set; }
         private RNdArray connectWeight { get; set; }
 
         private RNdArray axsonConnectCount { get; set; }
+        private RNdArray axsonConnectStartIndex { get; set; }
         private RNdArray axsonConnectMatrix { get; set; }
         #endregion
 
         public List<CellState> GetState()
         {
             List<CellState> res = new List<Connectome.CellState>();
-            foreach (var item in Cells.FindAll(x => x is Cell))
+            var cls = Cells.FindAll(x => x is Cell);
+            foreach (var item in cls)
             {
                 var cell = item as Cell;
-                res.Add(new Connectome.CellState(cell.Location, cell.Signal, cell.Energy, cell.State));
+                res.Add(new Connectome.CellState(cell.Location, cell.Value, cell.Signal, cell.Energy, cell.State));
             }
             return res;
         }
@@ -136,6 +138,13 @@ namespace Connectome
                     if (i == j) { continue; }
                     if (cell.Location.DistanceTo(Cells[j].Location) < cell.AxsonLength)
                     {
+                        if (Cells[j] is Cell)
+                        {
+                            if ((Cells[j] as Cell).AxsonConnectedID.Contains(cell.ID))
+                            {
+                                continue;
+                            }
+                        }
                         cell.AddAxson(Cells[j].ID);
                     }
                 }
@@ -160,6 +169,7 @@ namespace Connectome
             int len = Cells.Sum(x => (x is Cell) ? (x as Cell).AxsonConnectedID.Count : 0);
             axsonConnectMatrix = new RNdArray(len);
             axsonConnectCount = new RNdArray(Cells.Count);
+            axsonConnectStartIndex = new RNdArray(Cells.Count);
             int index = 0;
             for (int i = 0; i < Cells.Count; i++)
             {
@@ -178,9 +188,14 @@ namespace Connectome
                     axsonConnectCount[i] = 0;
                 }
             }
+            Parallel.For(0, Cells.Count, i =>
+            {
+                axsonConnectStartIndex[i] = Gpgpu.FunctionBase.StartPosition(i, new Components.GPGPU.Function.ComputeParameter("", axsonConnectCount, State.MemoryModeSet.WriteOnly));
+            });
 
             var random = new Random();
             cellValue = new RNdArray(Cells.Count);
+            cellSignal = new RNdArray(Cells.Count);
             cellActivity = new RNdArray(Cells.Count);
             cellState = new RNdArray(Cells.Count);
             connectWeight = new RNdArray(axsonConnectMatrix.Length);
@@ -188,7 +203,7 @@ namespace Connectome
 
             Parallel.For(0, connectWeight.Length, i =>
             {
-                connectWeight[i] = random.NextDouble();
+                connectWeight[i] = 1;// random.NextDouble();
             });
             var weightInitialize = new Gpgpu.Function.WeightInitialize();
             weightInitialize.FunctionConfiguration();
@@ -196,6 +211,7 @@ namespace Connectome
             variable = new Components.GPGPU.ComputeVariable();
             variable.Add("ConnectWeight", connectWeight, State.MemoryModeSet.WriteOnly);
             variable.Add("AxsonConnectCount", axsonConnectCount, State.MemoryModeSet.ReadOnly);
+            variable.Add("axsonConnectStartIndex", axsonConnectStartIndex, State.MemoryModeSet.ReadOnly);
             variable.Add("AxsonConnectMatrix", axsonConnectMatrix, State.MemoryModeSet.ReadOnly);
             variable.Argument.Add(new Components.GPGPU.ComputeVariable.ValueSet("CellCount") { Value = cellValue.Length });
             variable.Argument.Add(new Components.GPGPU.ComputeVariable.ValueSet("NeuronCount") { Value = NeuronCount });
@@ -214,7 +230,9 @@ namespace Connectome
             Energy = NeuronCount / 2;
             new System.Threading.Thread(() =>
             {
+                double prevEnergy = Energy;
                 var resValue = new RNdArray(Cells.Count);
+                var resSignal = new RNdArray(Cells.Count);
                 var resActivity = new RNdArray(Cells.Count);
                 var resState = new RNdArray(Cells.Count);
                 Components.GPGPU.ComputeVariable variable;
@@ -222,22 +240,27 @@ namespace Connectome
                 function.FunctionConfiguration();
                 while (!CoreObject.IsTerminate)
                 {
-                    float d_energy = (float)((Energy) / NeuronCount);
+                    Energy = 1000;
+                    float d_energy = 1;// (float)(Energy - prevEnergy);
 
                     DateTime start = DateTime.Now;
-                    cellValue.CopyBy(Cells.Select(x => x.Signal).ToArray());
+                    cellValue.CopyBy(Cells.Select(x => x.Value).ToArray());
+                    cellSignal.CopyBy(Cells.Select(x => x.Signal).ToArray());
                     cellActivity.CopyBy(Cells.Select(x => (x is Cell) ? (Real)(x as Cell).Activity : x.Signal).ToArray());
                     cellState.CopyBy(Cells.Select(x => (x is Cell) ? (Real)(int)(x as Cell).State : 1).ToArray());
 
                     variable = new Components.GPGPU.ComputeVariable();
                     variable.Add("cellValue", cellValue, State.MemoryModeSet.ReadOnly);
+                    variable.Add("cellSignal", cellSignal, State.MemoryModeSet.ReadOnly);
                     variable.Add("cellActivity", cellActivity, State.MemoryModeSet.ReadOnly);
                     variable.Add("cellState", cellState, State.MemoryModeSet.ReadOnly);
                     variable.Add("connectWeight", connectWeight, State.MemoryModeSet.ReadOnly);
                     variable.Add("cellEnergy", cellEnergy, State.MemoryModeSet.WriteOnly);
                     variable.Add("axsonConnectCount", axsonConnectCount, State.MemoryModeSet.ReadOnly);
+                    variable.Add("axsonConnectStartIndex", axsonConnectStartIndex, State.MemoryModeSet.ReadOnly);
                     variable.Add("axsonConnectMatrix", axsonConnectMatrix, State.MemoryModeSet.ReadOnly);
                     variable.Add("resValue", resValue, State.MemoryModeSet.WriteOnly);
+                    variable.Add("resSignal", resSignal, State.MemoryModeSet.WriteOnly);
                     variable.Add("resActivity", resActivity, State.MemoryModeSet.WriteOnly);
                     variable.Add("resState", resState, State.MemoryModeSet.WriteOnly);
                     variable.Argument.Add(new Components.GPGPU.ComputeVariable.ValueSet("CellCount") { Value = cellValue.Length });
@@ -253,7 +276,7 @@ namespace Connectome
                         item.Signal = 0;
                         foreach (var id in item.AxsonConnectedID)
                         {
-                            item.Signal += Cells[id].Signal;
+                            item.Signal += Cells[id].Value;
                         }
                         item.Signal /= item.AxsonConnectedID.Count;
                     }
@@ -275,10 +298,10 @@ namespace Connectome
                         if (Cells[i] is Cell)
                         {
                             var cell = (Cells[i] as Cell);
-                            cell.Signal = resValue[i];
+                            cell.Value = resValue[i];
+                            cell.Signal = resSignal[i];
                             cell.Activity = resActivity[i];
                             cell.State = (Cell.IgnitionState)Enum.ToObject(typeof(Cell.IgnitionState), (int)resState[i]);
-                            cellEnergy[i] += d_energy;
                             cell.Energy = cellEnergy[i];
                         }
                     }
